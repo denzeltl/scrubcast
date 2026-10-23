@@ -1,44 +1,78 @@
 import fs from "fs";
 import path from "path";
-import { RAW_EPISODES } from "../src/data/raw-episodes";
-import { generateEmbedding } from "../src/lib/embeddings";
 
-async function buildIndex() {
-  console.log("=== Building Scrubcast Vector Index ===");
-  console.log(`Processing ${RAW_EPISODES.length} episodes...`);
+// Freezes the featured videos into src/data so a fresh deploy has them ready:
+// transcript passages + embeddings in indexed-episodes.json, whole-video summaries in
+// built-in-summaries.json.
+//
+// To change the featured videos:
+//   1. Paste each link into the running app and wait for "About this video" to fill in
+//      (that writes data/library/<id>.json and data/summaries/<id>.json)
+//   2. Update FEATURED below (ids are "yt-" + the YouTube video id)
+//   3. npm run index
 
-  const indexedEpisodes = [];
+const FEATURED: { id: string; suggestedQueries: string[] }[] = [
+  {
+    id: "yt-TitZV6k8zfA", // Marques Brownlee: Humane AI Pin review (25 min)
+    suggestedQueries: [
+      "What's MKBHD's overall verdict on the AI Pin?",
+      "How bad is the battery life?",
+      "Why does he say a phone does it better?",
+      "What does he like about the hardware?",
+    ],
+  },
+  {
+    id: "yt-1x-i9z617z4", // Kurzgesagt: How we make money on YouTube (10 min)
+    suggestedQueries: [
+      "How does Kurzgesagt make most of its money?",
+      "How much do YouTube ads actually pay them?",
+      "Does Bill Gates influence their videos?",
+      "How did the channel get started?",
+    ],
+  },
+  {
+    id: "yt-arj7oStGLkU", // Tim Urban, TED: Inside the mind of a master procrastinator (14 min)
+    suggestedQueries: [
+      "What is the Instant Gratification Monkey?",
+      "When does the Panic Monster show up?",
+      "Why is procrastination without deadlines so dangerous?",
+      "What's the Life Calendar at the end of the talk?",
+    ],
+  },
+];
 
-  for (const ep of RAW_EPISODES) {
-    console.log(`\nIndexing episode: "${ep.title}" (${ep.chunks.length} chunks)...`);
-    const indexedChunks = [];
+const root = path.resolve(__dirname, "..");
+const read = (file: string) => JSON.parse(fs.readFileSync(path.join(root, file), "utf-8"));
 
-    for (let i = 0; i < ep.chunks.length; i++) {
-      const chunk = ep.chunks[i];
-      process.stdout.write(`  [${i + 1}/${ep.chunks.length}] Embedding chunk at ${chunk.startTime}s (${chunk.speaker})... `);
-      const t0 = Date.now();
-      const embedding = await generateEmbedding(chunk.text);
-      const dt = Date.now() - t0;
-      console.log(`✓ (${dt}ms, dim=${embedding.length})`);
+// Already-bundled videos are kept as they are, so data/ only needs the new ones
+const bundledEpisodes: { id: string }[] = read("src/data/indexed-episodes.json");
+const bundledSummaries: Record<string, unknown> = read("src/data/built-in-summaries.json");
 
-      indexedChunks.push({
-        ...chunk,
-        embedding,
-      });
-    }
+const episodes = [];
+const summaries: Record<string, unknown> = {};
 
-    indexedEpisodes.push({
-      ...ep,
-      chunks: indexedChunks,
-    });
+for (const { id, suggestedQueries } of FEATURED) {
+  const bundled = bundledEpisodes.find((ep) => ep.id === id);
+  if (bundled && bundledSummaries[id]) {
+    episodes.push({ ...bundled, suggestedQueries });
+    summaries[id] = bundledSummaries[id];
+    console.log(`✓ ${id} (already bundled)`);
+    continue;
   }
 
-  const outputPath = path.resolve(__dirname, "../src/data/indexed-episodes.json");
-  fs.writeFileSync(outputPath, JSON.stringify(indexedEpisodes, null, 2), "utf-8");
-  console.log(`\nSuccessfully written indexed episodes to: ${outputPath}`);
+  const episodeFile = `data/library/${id}.json`;
+  const summaryFile = `data/summaries/${id}.json`;
+  for (const file of [episodeFile, summaryFile]) {
+    if (!fs.existsSync(path.join(root, file))) {
+      throw new Error(`${file} is missing. Paste the video into the app and let its summary finish first.`);
+    }
+  }
+  const episode = read(episodeFile);
+  episodes.push({ ...episode, suggestedQueries });
+  summaries[id] = read(summaryFile);
+  console.log(`✓ ${episode.title} (${episode.chunks.length} passages)`);
 }
 
-buildIndex().catch((err) => {
-  console.error("Index build failed:", err);
-  process.exit(1);
-});
+fs.writeFileSync(path.join(root, "src/data/indexed-episodes.json"), JSON.stringify(episodes), "utf-8");
+fs.writeFileSync(path.join(root, "src/data/built-in-summaries.json"), JSON.stringify(summaries, null, 2), "utf-8");
+console.log(`\nWrote ${episodes.length} featured episodes to src/data/`);

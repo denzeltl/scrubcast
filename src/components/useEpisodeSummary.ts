@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { SummaryStatus } from "@/types/podcast";
 
 const POLL_MS = 4000;
+// How many times to look again when the server doesn't know the video (about a minute)
+const MAX_MISSES = 15;
 
 /**
  * Whole-video summary for an episode. Starts generation if it hasn't run yet and
@@ -17,6 +19,7 @@ export function useEpisodeSummary(episodeId: string): SummaryStatus | null {
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Ask the server to (re)start a job at most once per time the video is opened
     let requested = false;
+    let misses = 0;
 
     const request = (method: "GET" | "POST") =>
       fetch(
@@ -28,7 +31,12 @@ export function useEpisodeSummary(episodeId: string): SummaryStatus | null {
 
     const tick = async (method: "GET" | "POST") => {
       const value = await request(method).catch(() => null);
-      if (cancelled || !value) return;
+      if (cancelled) return;
+      if (!value) {
+        // The server forgot this pasted video; the next search re-indexes it, so look again shortly
+        if (++misses <= MAX_MISSES) timer = setTimeout(() => tick("GET"), POLL_MS);
+        return;
+      }
       // Not generated yet (or the server restarted mid-job, or it failed): ask for it once
       if ((value.state === "none" || value.state === "error") && !requested) {
         requested = true;

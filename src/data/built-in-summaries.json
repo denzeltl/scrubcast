@@ -1,0 +1,164 @@
+{
+  "yt-TitZV6k8zfA": {
+    "overview": "Marques Brownlee reviews the Humane AI Pin, a $700 wearable computer, and delivers a largely negative assessment. He starts with an overview, then examines hardware, user experience, design flaws, app limitations, and finally compares it to smartphones, concluding it falls short.",
+    "mainArgument": "The central thesis is that the Humane AI Pin is an overpriced, underperforming device that lacks essential functionality and integration, making it inferior to existing smartphones.",
+    "keyPoints": [
+      {
+        "seconds": 0,
+        "text": "Introduces the Humane AI Pin as a futuristic wearable computer with a negative tone."
+      },
+      {
+        "seconds": 262,
+        "text": "Details the pin’s solid aluminum build, charging accessories, and magnetic attachment system."
+      },
+      {
+        "seconds": 492,
+        "text": "Highlights performance problems, battery life issues, overheating, and overall usability."
+      },
+      {
+        "seconds": 798,
+        "text": "Critiques notification light placement, camera quality, and hub reliability."
+      },
+      {
+        "seconds": 860,
+        "text": "Notes the lack of major apps like Uber, Spotify, and Gmail."
+      },
+      {
+        "seconds": 1148,
+        "text": "Argues that lack of phone integration hampers assistant capabilities and makes it inferior to smartphones."
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 0,
+        "title": "Product Overview",
+        "summary": "Introduces the Humane AI Pin as a futuristic wearable computer and sets up the review’s negative tone."
+      },
+      {
+        "startTime": 262,
+        "title": "Hardware & Design",
+        "summary": "Details the pin’s solid aluminum build, charging accessories, and magnetic attachment system."
+      },
+      {
+        "startTime": 492,
+        "title": "User Experience & Issues",
+        "summary": "Discusses the pin’s performance problems, battery life, overheating, and overall usability."
+      },
+      {
+        "startTime": 798,
+        "title": "Design & Usability Issues",
+        "summary": "The speaker critiques the pin’s notification light placement, camera quality, and hub reliability, noting the device’s limited functionality and poor visual output."
+      },
+      {
+        "startTime": 860,
+        "title": "App Ecosystem Limitations",
+        "summary": "The pin lacks major apps like Uber, Spotify, and Gmail, restricting its usefulness compared to smartphones."
+      },
+      {
+        "startTime": 1148,
+        "title": "Standalone vs. Phone Integration",
+        "summary": "The speaker argues that the pin’s lack of phone integration hampers its assistant capabilities, making it inferior to smartphones for everyday tasks."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-23T06:31:15.113Z"
+  },
+  "yt-1x-i9z617z4": {
+    "overview": "Kurzgesagt – In a Nutshell explains how the channel’s revenue streams evolved, from early ad revenue to a diversified mix that now includes a shop, Patreon, sponsorships, and institutional funding. The video follows a chronological narrative, beginning with the founder’s dropout story, then detailing the shift in funding models, and finally breaking down the current income percentages. It ends with a discussion of editorial independence and contractual safeguards with sponsors.",
+    "mainArgument": "The central thesis is that a successful YouTube channel can achieve financial sustainability by diversifying income sources beyond advertising, with a significant portion coming from merchandise and philanthropic sponsorships. The video emphasizes the importance of maintaining editorial control while engaging with institutional partners.",
+    "keyPoints": [
+      {
+        "seconds": 0,
+        "text": "Founder Philipp’s dropout experience sparked the creation of Kurzgesagt as a passion project."
+      },
+      {
+        "seconds": 105,
+        "text": "In 2015 the channel broke even and began earning profit, leading to hiring full‑time staff."
+      },
+      {
+        "seconds": 244,
+        "text": "Revenue is now split among shop sales, ads, Patreon, institutional sponsors, and agency work."
+      },
+      {
+        "seconds": 213,
+        "text": "The shop accounts for 40% of revenue over the last eight years."
+      },
+      {
+        "seconds": 325,
+        "text": "Bill Gates‑funded organizations contribute about 3% of revenue, while Open Philanthropy adds 5% for specific projects."
+      },
+      {
+        "seconds": 371,
+        "text": "All institutional sponsors are contractually barred from editorial influence, only suggesting topic areas."
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 0,
+        "title": "Kurzgesagt Origins",
+        "summary": "The founder Philipp’s dropout experience and the birth of Kurzgesagt as a passion project."
+      },
+      {
+        "startTime": 105,
+        "title": "Funding Evolution",
+        "summary": "Transition from ad revenue to Patreon, sponsorships, and the rise of the shop as primary income."
+      },
+      {
+        "startTime": 244,
+        "title": "Revenue Breakdown",
+        "summary": "Detailed percentages of income sources: shop, ads, Patreon, institutional sponsors, and agency work."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-23T06:32:15.178Z"
+  },
+  "yt-arj7oStGLkU": {
+    "overview": "Tim Urban, a TED speaker, shares his personal experience with procrastination, illustrating how he used to delay tasks until the last minute. He recounts a specific crisis—finishing a 90‑page thesis in 72 hours—and then explains a mental model that breaks procrastination into three characters: the Rational Decision‑Maker, the Instant Gratification Monkey, and the Panic Monster. The talk flows from anecdote to theory, ending with a broader reflection on the long‑term effects of chronic procrastination.",
+    "mainArgument": "Urban argues that procrastination is driven by an internal conflict between rational planning and instant gratification, with deadlines triggering a panic response that forces action. He shows how this dynamic explains both short‑term frantic bursts and long‑term chronic dissatisfaction.",
+    "keyPoints": [
+      {
+        "seconds": 12,
+        "text": "Tim describes his typical college procrastination pattern, starting slowly and rushing at deadlines."
+      },
+      {
+        "seconds": 107,
+        "text": "He recounts writing 90 pages in 72 hours, pulling two all‑nighters to meet a thesis deadline."
+      },
+      {
+        "seconds": 201,
+        "text": "Urban introduces his brain model: Rational Decision‑Maker, Instant Gratification Monkey, and Panic Monster."
+      },
+      {
+        "seconds": 237,
+        "text": "The Instant Gratification Monkey lives in the present and seeks easy, fun activities."
+      },
+      {
+        "seconds": 448,
+        "text": "The Panic Monster awakens only when a deadline or serious consequence is imminent."
+      },
+      {
+        "seconds": 664,
+        "text": "Long‑term procrastination occurs when there are no deadlines, leading to chronic unhappiness."
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 12,
+        "title": "College Writing Habits",
+        "summary": "Tim explains his typical procrastination pattern in college, starting slowly and then rushing at the deadline."
+      },
+      {
+        "startTime": 107,
+        "title": "Senior Thesis Crisis",
+        "summary": "He recounts the frantic 72‑hour sprint to finish his 90‑page thesis just before the deadline."
+      },
+      {
+        "startTime": 201,
+        "title": "Brain Model of Procrastination",
+        "summary": "Tim introduces the Rational Decision‑Maker, Instant Gratification Monkey, and Panic Monster as a metaphor for how procrastinators work."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-23T08:00:35.976Z"
+  }
+}

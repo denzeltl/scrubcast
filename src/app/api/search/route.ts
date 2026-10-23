@@ -3,12 +3,16 @@ import { searchEpisodeChunks } from "@/lib/search";
 import { GROQ_MODEL, synthesizeAnswer } from "@/lib/groq";
 import { getEpisodeById } from "@/lib/episodes";
 import { getSummary } from "@/lib/summary";
+import { checkRateLimit, LIMITS } from "@/lib/rateLimit";
 import { SearchResult } from "@/types/podcast";
 
 const MAX_QUERY_LENGTH = 500;
 
 export async function POST(req: NextRequest) {
   const tTotalStart = Date.now();
+
+  const limited = checkRateLimit(req, LIMITS.search);
+  if (limited) return limited;
 
   let body: unknown;
   try {

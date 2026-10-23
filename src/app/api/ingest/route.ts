@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { IngestError, ingestYouTubeUrl } from "@/lib/ingest";
 import { stripEmbeddings } from "@/lib/episodes";
+import { checkRateLimit, LIMITS } from "@/lib/rateLimit";
 
 // Long videos take a while to embed on CPU
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  const limited = checkRateLimit(req, LIMITS.ingest);
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await req.json();

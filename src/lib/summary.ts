@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { EpisodeSummary, PodcastEpisode, SummaryChapter, SummaryStatus, TranscriptChunk } from "@/types/podcast";
+import builtInSummaries from "@/data/built-in-summaries.json";
 import { createChatCompletion, hasGroqKey } from "./groqKeys";
+import { SAVE_TO_DISK } from "./episodes";
 import { formatTimestamp, parseTimestampToSeconds } from "./time";
 
 // Whole-video understanding. Retrieval only ever shows the answer model a handful of
@@ -22,6 +24,8 @@ const MAP_MAX_OUTPUT = 900;
 const REDUCE_MAX_OUTPUT = 1800;
 
 const SUMMARY_DIR = path.join(process.cwd(), "data", "summaries");
+const MAX_CACHED_SUMMARIES = Number(process.env.MAX_CACHED_VIDEOS) || 20;
+const MAX_QUEUED_JOBS = Number(process.env.MAX_QUEUED_SUMMARIES) || 3;
 
 
 type Job = { promise: Promise<void>; done: number; total: number; error?: string };
@@ -55,9 +59,13 @@ function summaryPath(episodeId: string): string {
 }
 
 export function getSummary(episodeId: string): EpisodeSummary | undefined {
+  // Featured videos ship with their summary (scripts/build-index.ts)
+  const builtIn = (builtInSummaries as Record<string, EpisodeSummary>)[episodeId];
+  if (builtIn) return builtIn;
   const cached = summaryCache.get(episodeId);
   if (cached) return cached;
-  if (!/^[A-Za-z0-9_-]+$/.test(episodeId)) return undefined;
+  // Pasted videos' summaries live in memory only, unless curating featured videos locally
+  if (!SAVE_TO_DISK || !/^[A-Za-z0-9_-]+$/.test(episodeId)) return undefined;
   const file = summaryPath(episodeId);
   if (!fs.existsSync(file)) return undefined;
   const summary = JSON.parse(fs.readFileSync(file, "utf-8")) as EpisodeSummary;
@@ -82,6 +90,13 @@ export function ensureSummary(episode: PodcastEpisode): SummaryStatus {
   const status = getSummaryStatus(episode.id);
   if (status.state === "ready" || status.state === "running" || status.state === "unavailable") {
     return status;
+  }
+
+  // Every job shares one token budget, so a long queue means summaries nobody waits for.
+  // Refuse instead; the client retries the next time the video is opened.
+  const waiting = [...jobs.values()].filter((j) => !j.error).length;
+  if (waiting >= MAX_QUEUED_JOBS) {
+    return { state: "error", error: "the summarizer is busy with other videos right now" };
   }
 
   const windows = splitIntoWindows(episode.chunks);
@@ -198,9 +213,15 @@ Give 5-8 key points spread across the video. Use only what's in the input.`,
     createdAt: new Date().toISOString(),
   };
 
-  fs.mkdirSync(SUMMARY_DIR, { recursive: true });
-  fs.writeFileSync(summaryPath(episode.id), JSON.stringify(summary, null, 2), "utf-8");
+  if (SAVE_TO_DISK) {
+    fs.mkdirSync(SUMMARY_DIR, { recursive: true });
+    fs.writeFileSync(summaryPath(episode.id), JSON.stringify(summary, null, 2), "utf-8");
+  }
   summaryCache.set(episode.id, summary);
+  // Same cap as cached videos: drop the oldest summaries
+  while (summaryCache.size > MAX_CACHED_SUMMARIES) {
+    summaryCache.delete(summaryCache.keys().next().value as string);
+  }
 }
 
 async function waitForBudget(estimatedTokens: number): Promise<void> {

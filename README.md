@@ -6,11 +6,11 @@ It's a small RAG (retrieval-augmented generation) app over podcast transcripts. 
 
 ## What it does today, and what it doesn't
 
-**Any YouTube video with captions.** Paste a link and Scrubcast fetches the video's captions with their timestamps, groups them into 30 to 45 second passages, embeds each passage, and saves the result to `data/library/<id>.json`. The video then shows up in the episode picker and you can ask it questions. A 3.5-hour episode (Lex Fridman #333) took 18 seconds and produced 376 passages. Pasting the same link again reuses the saved index.
+**Any YouTube video with captions, up to 60 minutes.** Paste a link and Scrubcast fetches the video's captions with their timestamps, groups them into 30 to 45 second passages, embeds each passage, and starts a whole-video summary. Pasted videos are private to the visitor who pasted them: they're held in server memory (the 20 most recent), never shown to other visitors and never written to disk. If the server forgets one (restart, or newer videos pushed it out), the next question re-indexes it automatically.
 
 Captions don't say who is talking, so ingested passages are labeled "Speaker". Auto-generated captions work but have no punctuation, so passage breaks fall on time limits instead of sentence ends.
 
-**Two built-in demo episodes** also ship with the repo (Karpathy on Lex Fridman, Hassabis on Dwarkesh). Their transcripts in [`src/data/raw-episodes.ts`](./src/data/raw-episodes.ts) are short hand-written paraphrases with approximate timestamps, not real captions. To search the real transcript of either one, paste its YouTube link.
+**Three featured videos** ship with the repo, indexed and summarized from their real captions (see [Featured videos](#featured-videos)). Anything else, paste a link.
 
 It does **not** yet:
 
@@ -20,7 +20,7 @@ It does **not** yet:
 
 ## How a question gets answered
 
-1. **Index (once per video).** `POST /api/ingest` takes a YouTube link, fetches the captions through YouTube's InnerTube player endpoint (no API key), chunks them, and embeds every chunk with `Xenova/bge-small-en-v1.5`. The model runs locally in Node, so embeddings cost nothing. Each video's 384-number vectors go into `data/library/`. The built-in demo episodes are indexed the same way by `npm run index` into `src/data/indexed-episodes.json`.
+1. **Index (once per video).** `POST /api/ingest` takes a YouTube link, fetches the captions through YouTube's InnerTube player endpoint (no API key), chunks them, and embeds every chunk with `Xenova/bge-small-en-v1.5`. The model runs locally in Node, so embeddings cost nothing. Each video's 384-number vectors are kept in server memory. The featured videos are frozen into `src/data/` by `npm run index`.
 2. **Retrieve.** `POST /api/search` embeds your question with the same model and ranks the episode's chunks by cosine similarity. The top 5 come back.
 3. **Generate.** Those 5 chunks, each labeled with its `[MM:SS]` start time, go to Groq's `openai/gpt-oss-120b` (set `GROQ_MODEL` to use another). The prompt tells it to answer only from the excerpts and cite the timestamps.
 4. **Seek.** The UI turns every `[MM:SS]` in the answer into a button. Clicking it calls the YouTube IFrame API's `seekTo(seconds, true)`. Matching chunks also show up as pins on the player's timeline, and the transcript panel follows playback.
@@ -77,24 +77,53 @@ Paste a YouTube link into the app. Or call the API directly:
 curl -X POST localhost:3000/api/ingest -H "Content-Type: application/json" -d '{"url":"https://youtu.be/cdiD-9MMpb0"}'
 ```
 
-### By hand (for demo transcripts)
+### Featured videos
 
-1. Add an entry to `RAW_EPISODES` in [`src/data/raw-episodes.ts`](./src/data/raw-episodes.ts) with the YouTube video ID, optional `suggestedQueries`, and a list of chunks. Each chunk has `startTime`, `endTime` (seconds), `speaker` and `text`.
-2. Rebuild the index:
+Three videos ship with the repo so a fresh deploy has something to try right away, with transcripts, embeddings and summaries already built:
+
+- Marques Brownlee, "The Worst Product I've Ever Reviewed... For Now" (Humane AI Pin, 25 min)
+- Tim Urban, TED, "Inside the Mind of a Master Procrastinator" (14 min)
+- Kurzgesagt, "How We Make Money on YouTube with 20M Subs" (10 min)
+
+To change them, run the app locally with `SCRUBCAST_SAVE_LIBRARY=1` (so pasted videos are also written to `data/library/` and `data/summaries/`), paste the new links, and wait for each "About this video" card to fill in. Then edit `FEATURED` (ids and suggested questions) in [`scripts/build-index.ts`](./scripts/build-index.ts) and run:
 
 ```bash
 npm run index
 ```
 
-The episode then appears in the header's episode picker.
+That copies them from `data/library/` and `data/summaries/` into `src/data/indexed-episodes.json` and `src/data/built-in-summaries.json`.
+
+## Public use and limits
+
+The defaults are set for a small public site. Each can be changed with an env var:
+
+| Limit | Default | Env var |
+|---|---|---|
+| New videos per visitor | 5 per hour | `RATE_LIMIT_INGEST_PER_HOUR` |
+| Questions per visitor | 30 per 10 minutes | `RATE_LIMIT_SEARCH_PER_10_MIN` |
+| Longest video | 60 minutes | `MAX_VIDEO_MINUTES` |
+| Videos indexing at once (all visitors) | 2 | `MAX_CONCURRENT_INGESTS` |
+| Summaries waiting in line | 3 | `MAX_QUEUED_SUMMARIES` |
+| Pasted videos kept in memory | 20 | `MAX_CACHED_VIDEOS` |
+
+Visitors are told the limit and when to try again. Limits are counted per IP, in memory, per server instance.
+
+## Deploying
+
+Scrubcast needs a **long-running Node server**, not serverless functions (Vercel, Netlify): summaries run as background jobs after the request returns, and pasted videos live in server memory. Either of those breaks when each request is a separate short-lived function.
+
+The repo has a `Dockerfile` that builds the app and pre-downloads the embedding model. It runs anywhere that takes a Docker image: Railway, Render, Fly.io, or a VPS. Give it about 1 GB of RAM; the embedding model and onnxruntime use a few hundred MB. Set `GROQ_API_KEY` (and optionally `GROQ_API_KEY_BACKUP`) in the host's environment settings. Run one instance, since rate limits and pasted videos are per instance.
+
+**Check caption fetching on your host before launch.** YouTube sometimes blocks requests from datacenter IP ranges. After deploying, paste a link. If you get "YouTube won't serve this video" for videos that work locally, the host's IPs are blocked. The featured videos keep working either way, since they're bundled. The fixes are a different host or region, or routing YouTube requests through a residential proxy (a paid service).
 
 ## Project layout
 
 ```
 scrubcast/
-├── data/library/                 # Ingested YouTube episodes (git-ignored, created at runtime)
-├── data/summaries/               # Whole-video summaries (git-ignored, created at runtime)
-├── scripts/build-index.ts        # Embeds raw transcripts into indexed-episodes.json
+├── data/                         # Only with SCRUBCAST_SAVE_LIBRARY=1, for curating featured videos (git-ignored)
+├── Dockerfile                    # Production image: build + pre-downloaded embedding model
+├── scripts/build-index.ts        # Freezes the featured videos into src/data/
+├── scripts/warm-model.mjs        # Downloads the embedding model (used by the Dockerfile)
 ├── src/
 │   ├── app/
 │   │   ├── api/ingest/route.ts   # YouTube link in, searchable episode out
@@ -111,17 +140,18 @@ scrubcast/
 │   │   ├── PlayerDeck.tsx        # YouTube player, timeline pins, transport controls
 │   │   └── TranscriptFeed.tsx    # Full transcript that follows playback
 │   ├── data/
-│   │   ├── raw-episodes.ts       # Source transcripts
-│   │   └── indexed-episodes.json # Generated: transcripts plus embeddings
+│   │   ├── indexed-episodes.json # Featured videos: passages plus embeddings
+│   │   └── built-in-summaries.json # Featured videos: whole-video summaries
 │   ├── lib/
 │   │   ├── embeddings.ts         # bge-small pipeline and cosine similarity
-│   │   ├── episodes.ts           # Episode lookup and the data/library store (server only)
+│   │   ├── episodes.ts           # Featured list + in-memory cache of pasted videos (server only)
 │   │   ├── youtube.ts            # Parse YouTube links, fetch metadata and timed captions
 │   │   ├── ingest.ts             # Captions to chunks to embeddings to saved episode
 │   │   ├── summary.ts            # Background whole-video summary: chapters, overview, key points
 │   │   ├── search.ts             # Vector search over one episode
 │   │   ├── groq.ts               # Prompt, Groq call, citation parsing, fallback
 │   │   ├── groqKeys.ts           # Primary/backup key failover for every Groq call
+│   │   ├── rateLimit.ts          # Per-visitor limits for indexing and questions
 │   │   └── time.ts               # [MM:SS] formatting and parsing
 │   └── types/podcast.ts
 ├── DESIGN.md                     # Visual design contract (elan skill)

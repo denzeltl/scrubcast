@@ -6,62 +6,73 @@ import indexedEpisodesData from "@/data/indexed-episodes.json";
 // Server-only: episodes carry 384-d vectors for every chunk.
 // Pages must pass episodes through stripEmbeddings() before handing them to client components.
 
-// Demo episodes checked into the repo
+// Featured videos checked into the repo (scripts/build-index.ts). The only ones listed publicly.
 const BUILT_IN_EPISODES: PodcastEpisode[] = indexedEpisodesData as PodcastEpisode[];
 
-// Episodes ingested at runtime from YouTube links, one JSON file each
+// Videos visitors paste are private to them: kept in memory just long enough to answer
+// questions, never listed for other visitors, and gone after a restart. The client
+// re-indexes a video that was evicted (see Workbench).
+const MAX_PASTED_EPISODES = Number(process.env.MAX_CACHED_VIDEOS) || 20;
+
+// For curating featured videos locally: also write pasted videos to data/library/ so
+// scripts/build-index.ts can freeze them. Off by default; never enable it on a public server.
+export const SAVE_TO_DISK = process.env.SCRUBCAST_SAVE_LIBRARY === "1";
 const LIBRARY_DIR = path.join(process.cwd(), "data", "library");
 
-// Parsed library files, so a search doesn't re-read megabytes of vectors from disk
-const libraryCache = new Map<string, PodcastEpisode>();
-
-function libraryPath(id: string): string {
-  return path.join(LIBRARY_DIR, `${id}.json`);
-}
-
-function loadLibraryEpisode(id: string): PodcastEpisode | undefined {
-  const cached = libraryCache.get(id);
-  if (cached) return cached;
-
-  const file = libraryPath(id);
-  if (!fs.existsSync(file)) return undefined;
-  const episode = JSON.parse(fs.readFileSync(file, "utf-8")) as PodcastEpisode;
-  libraryCache.set(id, episode);
-  return episode;
-}
-
-function listLibraryIds(): string[] {
-  if (!fs.existsSync(LIBRARY_DIR)) return [];
-  return fs
-    .readdirSync(LIBRARY_DIR)
-    .filter((name) => name.endsWith(".json"))
-    .map((name) => name.slice(0, -".json".length));
-}
+// Shared across route modules (Next.js may load this file once per route); Map order is LRU order
+const pasted = ((globalThis as { __scrubcastPasted?: Map<string, PodcastEpisode> }).__scrubcastPasted ??=
+  new Map());
 
 export function getEpisodeById(id: string): PodcastEpisode | undefined {
   const builtIn = BUILT_IN_EPISODES.find((ep) => ep.id === id);
   if (builtIn) return builtIn;
+
+  const cached = pasted.get(id);
+  if (cached) {
+    // Mark as recently used
+    pasted.delete(id);
+    pasted.set(id, cached);
+    return cached;
+  }
+
   // Ids come from request bodies; never let one walk out of the library directory
-  if (!/^[A-Za-z0-9_-]+$/.test(id)) return undefined;
-  return loadLibraryEpisode(id);
+  if (SAVE_TO_DISK && /^[A-Za-z0-9_-]+$/.test(id)) {
+    const file = path.join(LIBRARY_DIR, `${id}.json`);
+    if (fs.existsSync(file)) {
+      const episode = JSON.parse(fs.readFileSync(file, "utf-8")) as PodcastEpisode;
+      rememberEpisode(episode);
+      return episode;
+    }
+  }
+  return undefined;
 }
 
 /**
- * Built-in demo episodes first, then ingested ones, newest first
+ * The public episode list: featured videos only
  */
 export function getAllEpisodes(): PodcastEpisode[] {
-  const library = listLibraryIds()
-    .map((id) => ({ id, mtime: fs.statSync(libraryPath(id)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime)
-    .map(({ id }) => loadLibraryEpisode(id))
-    .filter((ep): ep is PodcastEpisode => ep !== undefined);
-  return [...BUILT_IN_EPISODES, ...library];
+  return BUILT_IN_EPISODES;
+}
+
+export function isFeatured(id: string): boolean {
+  return BUILT_IN_EPISODES.some((ep) => ep.id === id);
 }
 
 export function saveLibraryEpisode(episode: PodcastEpisode): void {
-  fs.mkdirSync(LIBRARY_DIR, { recursive: true });
-  fs.writeFileSync(libraryPath(episode.id), JSON.stringify(episode), "utf-8");
-  libraryCache.set(episode.id, episode);
+  rememberEpisode(episode);
+  if (SAVE_TO_DISK) {
+    fs.mkdirSync(LIBRARY_DIR, { recursive: true });
+    fs.writeFileSync(path.join(LIBRARY_DIR, `${episode.id}.json`), JSON.stringify(episode), "utf-8");
+  }
+}
+
+function rememberEpisode(episode: PodcastEpisode): void {
+  pasted.delete(episode.id);
+  pasted.set(episode.id, episode);
+  while (pasted.size > MAX_PASTED_EPISODES) {
+    const oldest = pasted.keys().next().value as string;
+    pasted.delete(oldest);
+  }
 }
 
 /**

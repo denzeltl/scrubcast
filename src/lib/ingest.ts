@@ -20,6 +20,9 @@ const GENERIC_QUERIES = [
   "What predictions are made about the future?",
 ];
 
+const MAX_VIDEO_MINUTES = Number(process.env.MAX_VIDEO_MINUTES) || 60;
+const MAX_CONCURRENT_INGESTS = Number(process.env.MAX_CONCURRENT_INGESTS) || 2;
+
 // Two clicks on the same link share one ingest instead of embedding twice
 const inFlight = new Map<string, Promise<PodcastEpisode>>();
 
@@ -45,6 +48,10 @@ export async function ingestYouTubeUrl(url: string): Promise<{ episode: PodcastE
 
   let pending = inFlight.get(id);
   if (!pending) {
+    // Embedding is CPU-bound; a pile of parallel ingests would stall every request
+    if (inFlight.size >= MAX_CONCURRENT_INGESTS) {
+      throw new IngestError("Scrubcast is indexing other videos right now. Try again in a minute.");
+    }
     pending = buildEpisode(id, videoId).finally(() => inFlight.delete(id));
     inFlight.set(id, pending);
   }
@@ -57,6 +64,13 @@ async function buildEpisode(id: string, videoId: string): Promise<PodcastEpisode
     video = await fetchYouTubeVideo(videoId);
   } catch (err) {
     throw new IngestError(err instanceof Error ? err.message : "Couldn't fetch the video");
+  }
+
+  // Long videos cost the most CPU and summary tokens; cap them on a public server
+  if (video.lengthSeconds > MAX_VIDEO_MINUTES * 60) {
+    throw new IngestError(
+      `This video is ${Math.round(video.lengthSeconds / 60)} minutes long. Scrubcast handles videos up to ${MAX_VIDEO_MINUTES} minutes.`
+    );
   }
 
   const chunks = chunkSegments(id, video.segments);

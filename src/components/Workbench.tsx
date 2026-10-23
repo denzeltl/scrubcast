@@ -32,17 +32,51 @@ async function fetchIngest(url: string): Promise<PodcastEpisode> {
   return data.episode as PodcastEpisode;
 }
 
-async function fetchSearch(query: string, episodeId: string): Promise<SearchResult> {
+async function fetchSearch(query: string, episodeId: string, reindexed = false): Promise<SearchResult> {
   const res = await fetch("/api/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, episodeId }),
   });
   const data = await res.json().catch(() => null);
+
+  // Pasted videos live only in server memory and can be dropped (restart, or newer
+  // videos pushed them out). Re-index from the YouTube id and ask again, once.
+  if (res.status === 404 && episodeId.startsWith("yt-") && !reindexed) {
+    await fetchIngest(`https://youtu.be/${episodeId.slice(3)}`);
+    return fetchSearch(query, episodeId, true);
+  }
+
   if (!res.ok) {
     throw new Error(data?.error || `Search failed (${res.status})`);
   }
   return data as SearchResult;
+}
+
+// Each visitor's pasted videos are listed only for them, and kept in their own browser
+// so the list survives a reload. The server never lists them; if it has forgotten one,
+// fetchSearch re-indexes it on the next question.
+const PASTED_KEY = "scrubcast:pasted-videos";
+const MAX_REMEMBERED = 10;
+
+function loadPasted(): PodcastEpisode[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PASTED_KEY) ?? "[]");
+    return Array.isArray(saved) ? (saved as PodcastEpisode[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberPasted(episode: PodcastEpisode) {
+  try {
+    const others = loadPasted().filter((ep) => ep.id !== episode.id);
+    // Newest last, matching the picker order; oldest dropped past the cap
+    const next = [...others, episode].slice(-MAX_REMEMBERED);
+    localStorage.setItem(PASTED_KEY, JSON.stringify(next));
+  } catch {
+    // Private mode or storage full: the list just won't survive a reload
+  }
 }
 
 function defaultQueryFor(episode: PodcastEpisode): string {
@@ -102,6 +136,15 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
     void runSearch(trimmed, episodeId);
   };
 
+  // Bring back this visitor's own pasted videos from their browser after hydration.
+  // Set from a promise callback: the server render only knows the featured videos.
+  useEffect(() => {
+    void Promise.resolve(loadPasted()).then((saved) => {
+      if (saved.length === 0) return;
+      setEpisodes((list) => [...list, ...saved.filter((ep) => !list.some((e) => e.id === ep.id))]);
+    });
+  }, []);
+
   // Run initial search on mount to populate the workspace with live data
   const initialEpisodeId = episodes[0].id;
   const initialQuery = defaultQueryFor(episodes[0]);
@@ -135,6 +178,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
     try {
       const ep = await fetchIngest(url);
       setEpisodes((list) => (list.some((e) => e.id === ep.id) ? list : [...list, ep]));
+      if (!initialEpisodes.some((e) => e.id === ep.id)) rememberPasted(ep);
       handleSelectEpisode(ep);
       return true;
     } catch (err) {
