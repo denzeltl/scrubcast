@@ -62,11 +62,29 @@ const MAX_REMEMBERED = 10;
 
 function loadPasted(): PodcastEpisode[] {
   try {
-    const saved = JSON.parse(localStorage.getItem(PASTED_KEY) ?? "[]");
-    return Array.isArray(saved) ? (saved as PodcastEpisode[]) : [];
+    const saved: unknown = JSON.parse(localStorage.getItem(PASTED_KEY) ?? "[]");
+    // Browser storage can hold anything (old versions, manual edits): keep only well-formed videos
+    return Array.isArray(saved) ? saved.filter(isStoredEpisode) : [];
   } catch {
     return [];
   }
+}
+
+function isStoredEpisode(value: unknown): value is PodcastEpisode {
+  const ep = value as Partial<PodcastEpisode> | null;
+  return (
+    !!ep &&
+    typeof ep.id === "string" &&
+    /^yt-[A-Za-z0-9_-]{11}$/.test(ep.id) &&
+    typeof ep.title === "string" &&
+    typeof ep.youtubeId === "string" &&
+    typeof ep.duration === "number" &&
+    Array.isArray(ep.chunks) &&
+    ep.chunks.length > 0 &&
+    ep.chunks.every(
+      (c) => typeof c?.text === "string" && typeof c.startTime === "number" && typeof c.endTime === "number"
+    )
+  );
 }
 
 function rememberPasted(episode: PodcastEpisode) {

@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter, Inter_Tight } from "next/font/google";
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, THEME_COLOR, siteUrl } from "@/lib/site";
 
 // Inter for reading, Inter Tight 800 for headings, Geist Mono for every number
 const inter = Inter({
@@ -19,10 +20,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Scrubcast — Ask a video anything, jump to the answer",
-  description:
-    "Ask questions about any YouTube video. Scrubcast finds the moments that answer you, cites their timestamps, and jumps the player to the exact second.",
+// A function, not a constant, so SITE_URL is read when the server runs rather than at build.
+// Share images, icons and the manifest are picked up from src/app by file convention.
+export function generateMetadata(): Metadata {
+  const title = `${SITE_NAME} — ${SITE_TAGLINE}`;
+  return {
+    metadataBase: siteUrl(),
+    title,
+    description: SITE_DESCRIPTION,
+    applicationName: SITE_NAME,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      title,
+      description: SITE_DESCRIPTION,
+      url: "/",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: SITE_DESCRIPTION,
+    },
+  };
+}
+
+export const viewport: Viewport = {
+  themeColor: THEME_COLOR,
+  colorScheme: "dark",
 };
 
 export default function RootLayout({

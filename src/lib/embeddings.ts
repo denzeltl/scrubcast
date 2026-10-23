@@ -1,4 +1,4 @@
-import { pipeline, env } from "@xenova/transformers";
+import { pipeline, env } from "@huggingface/transformers";
 
 // Disable local model directory checks to download directly from HuggingFace cache
 env.allowLocalModels = false;
@@ -9,7 +9,8 @@ let embedderPromise: ReturnType<typeof pipeline<"feature-extraction">> | null = 
 export async function getEmbeddingPipeline() {
   if (!embedderPromise) {
     embedderPromise = pipeline("feature-extraction", "Xenova/bge-small-en-v1.5", {
-      quantized: true,
+      // 8-bit quantized weights: the same model file the bundled index was built with
+      dtype: "q8",
     });
     // Let a failed model download be retried on the next request instead of caching the rejection
     embedderPromise.catch(() => {

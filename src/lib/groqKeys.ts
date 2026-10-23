@@ -28,7 +28,7 @@ function buildSlots(): KeySlot[] {
     .map(([label, apiKey]) => ({
       label,
       // Rate limits and bad keys are handled below, so the SDK shouldn't sit retrying them
-      client: new Groq({ apiKey: apiKey.trim(), maxRetries: 0 }),
+      client: new Groq({ apiKey: apiKey.trim(), maxRetries: 0, timeout: 60_000 }),
       disabled: false,
       coolingUntil: 0,
     }));
@@ -88,7 +88,10 @@ export async function createChatCompletion(
 
 function nextKeyNote(slot: KeySlot): string {
   const other = shared.find((s) => s !== slot && !s.disabled);
-  return other ? `trying the ${other.label} key` : "no other key to try";
+  if (!other) return "no other key to try";
+  return other.coolingUntil <= Date.now()
+    ? `trying the ${other.label} key`
+    : "waiting for a key to free up";
 }
 
 /**

@@ -165,16 +165,16 @@ Split this section into 1-3 chapters where the topic changes. Give 2-4 claims. C
       MAP_MAX_OUTPUT
     );
 
-    for (const ch of notes.chapters ?? []) {
-      if (!ch?.title) continue;
+    for (const ch of asArray(notes.chapters)) {
+      if (!asText(ch.title)) continue;
       chapters.push({
         startTime: snapToChunkStart(ch.start, window),
-        title: ch.title.trim(),
-        summary: (ch.summary ?? "").trim(),
+        title: asText(ch.title),
+        summary: asText(ch.summary),
       });
     }
-    for (const claim of notes.claims ?? []) {
-      if (claim?.text) claims.push({ seconds: snapToChunkStart(claim.time, window), text: claim.text.trim() });
+    for (const claim of asArray(notes.claims)) {
+      if (asText(claim.text)) claims.push({ seconds: snapToChunkStart(claim.time, window), text: asText(claim.text) });
     }
     progress.done++;
   }
@@ -203,11 +203,11 @@ Give 5-8 key points spread across the video. Use only what's in the input.`,
 
   const allChunks = episode.chunks;
   const summary: EpisodeSummary = {
-    overview: (whole.overview ?? "").trim(),
-    mainArgument: (whole.mainArgument ?? "").trim(),
-    keyPoints: (whole.keyPoints ?? [])
-      .filter((p) => p?.text)
-      .map((p) => ({ seconds: snapToChunkStart(p.time, allChunks), text: p.text.trim() })),
+    overview: asText(whole.overview),
+    mainArgument: asText(whole.mainArgument),
+    keyPoints: asArray(whole.keyPoints)
+      .filter((p) => asText(p.text))
+      .map((p) => ({ seconds: snapToChunkStart(p.time, allChunks), text: asText(p.text) })),
     chapters: uniqueChapters,
     model: SUMMARY_MODEL,
     createdAt: new Date().toISOString(),
@@ -260,11 +260,20 @@ async function completeJson<T>(instructions: string, input: string, maxOutput: n
   }
 }
 
+// The model is asked for JSON of a given shape but nothing guarantees it
+function asArray<T>(value: T[] | undefined): T[] {
+  return Array.isArray(value) ? value.filter((v) => v && typeof v === "object") : [];
+}
+
+function asText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 /**
  * Map a model-written timestamp onto the start of the passage it most likely means
  */
-function snapToChunkStart(raw: string | undefined, chunks: TranscriptChunk[]): number {
-  const cleaned = (raw ?? "").replace(/[^\d:]/g, "");
+function snapToChunkStart(raw: unknown, chunks: TranscriptChunk[]): number {
+  const cleaned = (typeof raw === "string" ? raw : "").replace(/[^\d:]/g, "");
   if (!cleaned) return chunks[0].startTime;
 
   // A two-part stamp may be MM:SS or a truncated HH:MM; use whichever lands closer

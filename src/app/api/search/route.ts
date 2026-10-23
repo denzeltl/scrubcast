@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!episodeId || typeof episodeId !== "string") {
+  if (!episodeId || typeof episodeId !== "string" || episodeId.length > 64) {
     return NextResponse.json(
       { error: "Episode ID is required" },
       { status: 400 }
@@ -88,14 +88,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: unknown) {
+    // Details stay in the server log; visitors get a message they can act on
     console.error("Search route error:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Internal server error during search",
-      },
+      { error: "Something went wrong answering that. Please try again." },
       { status: 500 }
     );
   }

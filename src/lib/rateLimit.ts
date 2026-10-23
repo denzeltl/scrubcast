@@ -29,13 +29,22 @@ const hits: Map<string, number[]> = ((
   globalThis as { __scrubcastRateLimits?: Map<string, number[]> }
 ).__scrubcastRateLimits ??= new Map<string, number[]>());
 
+// How many proxies in front of the app append to x-forwarded-for (1 for a typical
+// host's load balancer). Raise it if the host chains more.
+const TRUSTED_PROXY_HOPS = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS) || 1);
+
 /**
- * Best guess at the visitor's IP. Behind a proxy (Railway, Render, Fly, nginx) the
- * real address is the first entry of x-forwarded-for.
+ * The visitor's IP. Each trusted proxy appends the address it saw to the end of
+ * x-forwarded-for, so the real client is counted from the right. Entries further left
+ * come from the visitor's own request and can be forged to dodge limits.
  */
 function clientId(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || req.headers.get("x-real-ip") || "unknown";
+  const chain = (req.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((ip) => ip.trim())
+    .filter(Boolean);
+  if (chain.length > 0) return chain[Math.max(0, chain.length - TRUSTED_PROXY_HOPS)];
+  return req.headers.get("x-real-ip") || "unknown";
 }
 
 /**

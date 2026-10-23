@@ -34,9 +34,10 @@ export async function POST(req: NextRequest) {
     if (error instanceof IngestError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
+    // Details stay in the server log; visitors get a message they can act on
     console.error("Ingest route error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Ingest failed" },
+      { error: "Something went wrong indexing that video. Please try again." },
       { status: 500 }
     );
   }

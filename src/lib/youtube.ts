@@ -6,6 +6,8 @@ const INNERTUBE_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyP
 const ANDROID_CLIENT_VERSION = "20.10.38";
 
 const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+// A stuck YouTube request would otherwise hold one of the few ingest slots indefinitely
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export interface CaptionSegment {
   start: number; // seconds
@@ -63,6 +65,7 @@ export function parseYouTubeVideoId(input: string): string | null {
 
 export async function fetchYouTubeVideo(videoId: string): Promise<YouTubeVideo> {
   const res = await fetch(INNERTUBE_PLAYER_URL, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -103,7 +106,9 @@ export async function fetchYouTubeVideo(videoId: string): Promise<YouTubeVideo> 
   }
 
   // Drop any fmt param so YouTube returns the plain <transcript><text> XML
-  const captionRes = await fetch(track.baseUrl.replace(/&fmt=[^&]*/, ""));
+  const captionRes = await fetch(track.baseUrl.replace(/&fmt=[^&]*/, ""), {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   if (!captionRes.ok) {
     throw new Error(`YouTube returned ${captionRes.status} while fetching captions`);
   }
@@ -113,6 +118,9 @@ export async function fetchYouTubeVideo(videoId: string): Promise<YouTubeVideo> 
   }
 
   const details = player.videoDetails ?? {};
+  if (details.isLive || details.isUpcoming) {
+    throw new Error("This is a live or upcoming stream. Try again once it has finished and has captions");
+  }
   return {
     videoId,
     title: details.title ?? videoId,
