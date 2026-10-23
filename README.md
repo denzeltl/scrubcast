@@ -22,10 +22,24 @@ It does **not** yet:
 
 1. **Index (once per video).** `POST /api/ingest` takes a YouTube link, fetches the captions through YouTube's InnerTube player endpoint (no API key), chunks them, and embeds every chunk with `Xenova/bge-small-en-v1.5`. The model runs locally in Node, so embeddings cost nothing. Each video's 384-number vectors go into `data/library/`. The built-in demo episodes are indexed the same way by `npm run index` into `src/data/indexed-episodes.json`.
 2. **Retrieve.** `POST /api/search` embeds your question with the same model and ranks the episode's chunks by cosine similarity. The top 5 come back.
-3. **Generate.** Those 5 chunks, each labeled with its `[MM:SS]` start time, go to Groq's `llama-3.3-70b-versatile`. The prompt tells it to answer only from the excerpts and cite the timestamps.
+3. **Generate.** Those 5 chunks, each labeled with its `[MM:SS]` start time, go to Groq's `openai/gpt-oss-120b` (set `GROQ_MODEL` to use another). The prompt tells it to answer only from the excerpts and cite the timestamps.
 4. **Seek.** The UI turns every `[MM:SS]` in the answer into a button. Clicking it calls the YouTube IFrame API's `seekTo(seconds, true)`. Matching chunks also show up as pins on the player's timeline, and the transcript panel follows playback.
 
 Without a `GROQ_API_KEY`, or if the Groq call fails, step 3 falls back to quoting the two best-matching passages verbatim. Search and seeking still work.
+
+## Whole-video questions
+
+Retrieval only shows the answer model 5 passages, which is fine for "why did Tesla drop radar?" but useless for "what's the main argument?". So after a video is indexed, a background job reads the whole transcript and writes:
+
+- an overview and the main argument
+- 5 to 8 key points with timestamps
+- chapters with titles, one-line summaries and start times
+
+It's saved to `data/summaries/<id>.json` (git-ignored). Every answer then gets the overview, main argument, key points and chapter titles alongside the retrieved passages, and can cite chapter and key-point timestamps too.
+
+**It's slow on Groq's free tier.** Each model is capped at 8,000 tokens per minute, and a single request can't exceed that. So the job summarizes the transcript about 3,500 tokens at a time and paces itself under the cap. A 20-minute video takes about a minute. The 3.5-hour Lex Fridman episode takes about 15 minutes. Questions work the whole time; they just don't use the summary until it's done. The job runs on `openai/gpt-oss-20b` so it has its own token budget and doesn't slow down live questions on `gpt-oss-120b`.
+
+Summaries are built one at a time. If the server restarts mid-job, the job is lost and starts again the next time someone opens that video.
 
 ## Quickstart
 
@@ -73,10 +87,12 @@ The episode then appears in the header's episode picker.
 ```
 scrubcast/
 ├── data/library/                 # Ingested YouTube episodes (git-ignored, created at runtime)
+├── data/summaries/               # Whole-video summaries (git-ignored, created at runtime)
 ├── scripts/build-index.ts        # Embeds raw transcripts into indexed-episodes.json
 ├── src/
 │   ├── app/
 │   │   ├── api/ingest/route.ts   # YouTube link in, searchable episode out
+│   │   ├── api/summary/route.ts  # Summary status, and start a summary job
 │   │   ├── api/search/route.ts   # Retrieve top chunks, then synthesize an answer
 │   │   ├── layout.tsx
 │   │   └── page.tsx              # Server page; strips embeddings before sending episodes to the browser
@@ -96,6 +112,7 @@ scrubcast/
 │   │   ├── episodes.ts           # Episode lookup and the data/library store (server only)
 │   │   ├── youtube.ts            # Parse YouTube links, fetch metadata and timed captions
 │   │   ├── ingest.ts             # Captions to chunks to embeddings to saved episode
+│   │   ├── summary.ts            # Background whole-video summary: chapters, overview, key points
 │   │   ├── search.ts             # Vector search over one episode
 │   │   ├── groq.ts               # Prompt, Groq call, citation parsing, fallback
 │   │   └── time.ts               # [MM:SS] formatting and parsing

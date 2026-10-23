@@ -8,12 +8,14 @@ interface StudioHeaderProps {
   episodes: PodcastEpisode[];
   currentEpisode: PodcastEpisode;
   onSelectEpisode: (episode: PodcastEpisode) => void;
+  llmModel: string;
 }
 
 export const StudioHeader: React.FC<StudioHeaderProps> = ({
   episodes,
   currentEpisode,
   onSelectEpisode,
+  llmModel,
 }) => {
   return (
     <header className="border-b border-[var(--color-border-subtle)] bg-[var(--color-surface)]/80 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3 transition-colors">
@@ -56,7 +58,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0d0f15] border border-[var(--color-border-deck)] text-[var(--color-ink-muted)]">
             <Sparkles className="w-3.5 h-3.5 text-[var(--color-accent-hover)]" />
             <span>LLM:</span>
-            <span className="text-[var(--color-ink)] font-medium">llama-3.3-70b</span>
+            <span className="text-[var(--color-ink)] font-medium">{llmModel.split("/").pop()}</span>
           </div>
 
           {/* Episode Selector dropdown */}

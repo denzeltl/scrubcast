@@ -9,10 +9,14 @@ import { SynthesizedAnswer } from "@/components/SynthesizedAnswer";
 import { SemanticMatches } from "@/components/SemanticMatches";
 import { TranscriptFeed } from "@/components/TranscriptFeed";
 import { SourceRow } from "@/components/SourceRow";
+import { useEpisodeSummary } from "@/components/useEpisodeSummary";
+import { SummaryCard } from "@/components/SummaryCard";
 import { AlertCircle, Sparkles, Terminal } from "lucide-react";
 
 interface WorkbenchProps {
   episodes: PodcastEpisode[];
+  // Groq model id, shown in the header and footer
+  llmModel: string;
 }
 
 async function fetchIngest(url: string): Promise<PodcastEpisode> {
@@ -45,7 +49,7 @@ function defaultQueryFor(episode: PodcastEpisode): string {
   return episode.suggestedQueries?.[0] ?? `What is ${episode.guest} talking about?`;
 }
 
-export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes }) => {
+export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes, llmModel }) => {
   // Grows as the user indexes YouTube links
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>(initialEpisodes);
   const [isIngesting, setIsIngesting] = useState<boolean>(false);
@@ -58,6 +62,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes 
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [activeSecond, setActiveSecond] = useState<number>(0);
   const [highlightedChunkId, setHighlightedChunkId] = useState<string | undefined>(undefined);
+  const summaryStatus = useEpisodeSummary(currentEpisode.id);
 
   const playerRef = useRef<PlayerDeckHandle>(null);
   // Only the most recent request may write results, so a slow answer for a
@@ -147,6 +152,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes 
         episodes={episodes}
         currentEpisode={currentEpisode}
         onSelectEpisode={handleSelectEpisode}
+        llmModel={llmModel}
       />
 
       {/* Main Intelligence Workspace */}
@@ -184,6 +190,14 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes 
                 <span>{searchError}</span>
               </div>
             )}
+
+            {/* What the whole video covers: overview, main argument, chapters */}
+            <SummaryCard
+              key={`summary-${currentEpisode.id}`}
+              status={summaryStatus}
+              onSeek={handleSeek}
+              activeSecond={activeSecond}
+            />
 
             {/* Sub-second Grounded AI Synthesis with [MM:SS] Citation Chips */}
             {searchResult ? (
@@ -246,7 +260,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes 
           <div className="flex items-center gap-3">
             <span>Model: Xenova/bge-small-en-v1.5 (384-d)</span>
             <span>•</span>
-            <span>LLM: Groq Llama 3.3 70B</span>
+            <span>LLM: Groq {llmModel}</span>
           </div>
         </div>
       </footer>

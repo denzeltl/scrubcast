@@ -1,8 +1,12 @@
 import Groq from "groq-sdk";
-import { Citation, SearchMatch } from "@/types/podcast";
+import { Citation, EpisodeSummary, SearchMatch } from "@/types/podcast";
 import { formatTimestamp, parseTimestampToSeconds } from "./time";
 
 const groqApiKey = process.env.GROQ_API_KEY;
+
+// Groq retires models without much notice (llama-3.3-70b-versatile is gone), so the
+// model is overridable. List what your key can use: GET https://api.groq.com/openai/v1/models
+export const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 export const groq = groqApiKey
   ? new Groq({
@@ -12,7 +16,10 @@ export const groq = groqApiKey
 
 export async function synthesizeAnswer(
   query: string,
-  matches: SearchMatch[]
+  matches: SearchMatch[],
+  // Whole-video chapters and overview, when they've been generated
+  summary?: EpisodeSummary,
+  episodeDuration?: number
 ): Promise<{
   answer: string;
   citations: Citation[];
@@ -40,19 +47,31 @@ export async function synthesizeAnswer(
     })
     .join("\n\n");
 
+  const summaryString = summary ? formatSummaryForPrompt(summary) : "";
+  // Chapters and key points are citable too, so citations can snap to them
+  const citable = summary ? [...matches, ...summaryAnchors(summary, episodeDuration)] : matches;
+
   const systemPrompt = `You are Scrubcast's sub-second audio synthesis intelligence.
-Your task is to provide a direct, razor-sharp, grounded answer to the user's question using ONLY the provided podcast transcript excerpts.
+Your task is to provide a direct, razor-sharp, grounded answer to the user's question using ONLY the provided material: ${
+    summary ? "a summary of the whole video (overview, main argument, key points, chapters) and " : ""
+  }transcript excerpts retrieved for this question.
+${
+  summary
+    ? "Use the summary for broad questions about the whole video (main argument, themes, structure, what's covered). Use the excerpts for specifics and quotes. Combine both when useful.\n"
+    : ""
+}
 
 CRITICAL CITATION RULES:
-1. Every major statement or insight MUST include an inline citation chip formatted strictly as [MM:SS] matching the speaker's start time from the sources (e.g., [03:45]).
+1. Every major statement or insight MUST include an inline citation chip copied exactly from the source it relies on, e.g. [03:45] or [01:36:42]. Keep the hours when a source has them.
 2. Only use timestamps that appear in the sources. Copy them exactly as written.
 3. Attribute quotes and perspectives to the speaker named in the source.
 4. Do NOT make up facts not found in the context. If the excerpts don't answer the question, say so plainly.
-5. Keep the synthesis concise, punchy, and structured for audio seekers.`;
+5. Keep the synthesis concise, punchy, and structured for audio seekers.
+6. Write plain text paragraphs. Use **bold** sparingly; no headings, tables or lists.`;
 
   const userPrompt = `Question: "${query}"
 
-Retrieved Podcast Excerpts:
+${summaryString ? `Whole-Video Summary:\n${summaryString}\n\n` : ""}Retrieved Podcast Excerpts:
 ${contextString}
 
 Synthesize a grounded answer with [MM:SS] citation chips:`;
@@ -63,15 +82,20 @@ Synthesize a grounded answer with [MM:SS] citation chips:`;
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      model: "llama-3.3-70b-versatile",
+      model: GROQ_MODEL,
       temperature: 0.2,
-      max_tokens: 600,
+      // gpt-oss reasons before answering and those tokens count against this limit,
+      // so leave room; "low" keeps answers fast for a search box
+      max_completion_tokens: 2000,
+      ...(GROQ_MODEL.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" as const } : {}),
     });
 
-    const answer =
+    const answer = snapCitationsToSources(
       chatCompletion.choices[0]?.message?.content ||
-      "Unable to synthesize answer from retrieved context.";
-    const citations = extractCitationsFromText(answer, matches);
+        "Unable to synthesize answer from retrieved context.",
+      citable
+    );
+    const citations = extractCitationsFromText(answer, citable);
 
     return {
       answer,
@@ -89,6 +113,86 @@ Synthesize a grounded answer with [MM:SS] citation chips:`;
       isFallback: true,
     };
   }
+}
+
+function formatSummaryForPrompt(summary: EpisodeSummary): string {
+  const lines = [
+    `Overview: ${summary.overview}`,
+    `Main argument: ${summary.mainArgument}`,
+    "Key points:",
+    ...summary.keyPoints.map((p) => `- [${formatTimestamp(p.seconds)}] ${p.text}`),
+    // Titles only: the answer model shares an ~8k tokens/minute budget with every question
+    "Chapters:",
+    ...summary.chapters.map((c) => `- [${formatTimestamp(c.startTime)}] ${c.title}`),
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * Chapters and key points as pseudo-passages, so citations of them snap and resolve
+ */
+function summaryAnchors(summary: EpisodeSummary, episodeDuration = Infinity): SearchMatch[] {
+  const chapterAnchors = summary.chapters.map((c, i) => ({
+    score: 0,
+    chunk: {
+      id: `chapter-${i + 1}`,
+      episodeId: "",
+      startTime: c.startTime,
+      endTime: (summary.chapters[i + 1]?.startTime ?? episodeDuration) - 1,
+      speaker: "Chapter",
+      text: `${c.title}: ${c.summary}`,
+    },
+  }));
+  const pointAnchors = summary.keyPoints.map((p, i) => ({
+    score: 0,
+    chunk: {
+      id: `point-${i + 1}`,
+      episodeId: "",
+      startTime: p.seconds,
+      endTime: p.seconds + 30,
+      speaker: "Key point",
+      text: p.text,
+    },
+  }));
+  // Key points first: they're more specific than a whole chapter
+  return [...pointAnchors, ...chapterAnchors];
+}
+
+/**
+ * Rewrite every [timestamp] in the answer to the start time of the retrieved passage it
+ * refers to. Models shorten [01:36:42] to [01:36], which would otherwise seek to 1m36s,
+ * and occasionally cite a time inside a passage rather than its start.
+ */
+export function snapCitationsToSources(text: string, matches: SearchMatch[]): string {
+  // gpt-oss often writes citations with full-width brackets: 【01:32:24】
+  const normalized = text.replace(/【\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*】/g, "[$1]");
+  if (matches.length === 0) return normalized;
+
+  return normalized.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, (_tag, raw: string) => {
+    const asWritten = parseTimestampToSeconds(raw);
+    const chunks = matches.map((m) => m.chunk);
+
+    // 1. The time as written falls inside a passage
+    let target = chunks.find((c) => asWritten >= c.startTime && asWritten <= c.endTime);
+
+    // 2. A two-part tag that is really a truncated HH:MM: the passage starts within that minute
+    const parts = raw.split(":").map(Number);
+    if (!target && parts.length === 2) {
+      const minuteStart = parts[0] * 3600 + parts[1] * 60;
+      target = chunks.find(
+        (c) => c.startTime <= minuteStart + 59 && c.endTime >= minuteStart
+      );
+    }
+
+    // 3. Otherwise the passage closest to the time as written
+    if (!target) {
+      const distance = (c: (typeof chunks)[number]) =>
+        Math.min(Math.abs(c.startTime - asWritten), Math.abs(c.endTime - asWritten));
+      target = chunks.reduce((best, c) => (distance(c) < distance(best) ? c : best));
+    }
+
+    return `[${formatTimestamp(target.startTime)}]`;
+  });
 }
 
 /**

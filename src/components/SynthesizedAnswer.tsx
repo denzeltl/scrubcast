@@ -11,12 +11,27 @@ interface SynthesizedAnswerProps {
   activeSecond?: number;
 }
 
+/**
+ * The model may use **bold**; render it instead of showing asterisks
+ */
+function renderInline(text: string, keyBase: number): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+      <strong key={`b-${keyBase}-${i}`} className="font-semibold text-[var(--color-ink)]">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    )
+  );
+}
+
 export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
   searchResult,
   onSeek,
   activeSecond = 0,
 }) => {
-  const { answer, citations, latencyMs, isFallbackGroq } = searchResult;
+  const { answer, citations, latencyMs, isFallbackGroq, model } = searchResult;
 
   // Render text and replace [MM:SS] with clickable citation buttons
   const renderSynthesizedText = (text: string) => {
@@ -33,7 +48,7 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
 
       // Push text before the match
       if (matchIndex > lastIndex) {
-        parts.push(text.substring(lastIndex, matchIndex));
+        parts.push(...renderInline(text.substring(lastIndex, matchIndex), matchIndex));
       }
 
       // Check if this citation is currently playing (within 8s window)
@@ -59,7 +74,7 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
     }
 
     if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
+      parts.push(...renderInline(text.substring(lastIndex), lastIndex));
     }
 
     return parts;
@@ -77,7 +92,7 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
             <h3 className="text-sm font-bold text-[var(--color-ink)] flex items-center gap-2">
               Grounded Intelligence Synthesis
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#0d0f15] text-[var(--color-secondary)] border border-[var(--color-border-deck)]">
-                {isFallbackGroq ? "extractive fallback" : "llama-3.3-70b"}
+                {isFallbackGroq ? "extractive fallback" : model?.split("/").pop() ?? "LLM"}
               </span>
             </h3>
             <p className="text-xs text-[var(--color-ink-muted)]">

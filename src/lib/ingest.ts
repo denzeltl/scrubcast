@@ -1,6 +1,7 @@
 import { PodcastEpisode, TranscriptChunk } from "@/types/podcast";
 import { generateEmbeddings } from "./embeddings";
 import { getEpisodeById, saveLibraryEpisode } from "./episodes";
+import { ensureSummary } from "./summary";
 import { CaptionSegment, fetchYouTubeVideo, parseYouTubeVideoId } from "./youtube";
 
 // Caption lines are only a few seconds long. Grouping them into ~30-45s passages
@@ -75,6 +76,8 @@ async function buildEpisode(id: string, videoId: string): Promise<PodcastEpisode
   };
 
   saveLibraryEpisode(episode);
+  // Chapters and overview take a while on Groq's free tier; build them in the background
+  ensureSummary(episode);
   return episode;
 }
 

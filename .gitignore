@@ -46,3 +46,6 @@ next-env.d.ts
 
 # episodes ingested from YouTube links at runtime
 /data/library/
+
+# per-video summaries generated at runtime
+/data/summaries/

@@ -42,6 +42,7 @@ components:
   playerDeck: "High-definition video deck with integrated scrub track and playback telemetry"
   transcriptFeed: "Clean scrollable transcript rail with active playhead indicator and quick-scrub timecodes"
   synthesisCard: "Executive grounded summary with direct quote evidence and semantic similarity scores"
+  summaryCard: "'About this video' at the top of the left column: overview, main argument (iris left rule), and chapter rows with iris timecode chips that seek on click; the playing chapter is highlighted. Shows job progress while the background summary runs"
   sourceRow: "Step one above the search bar: names the video being searched and takes a YouTube link to index a new one. Rejected links shake the field once (280ms) and show the reason inline"
 ---
 
@@ -66,7 +67,7 @@ Scrubcast is a precision audio-intelligence workbench for researchers, engineers
 - Clean sticky top bar with global search, keyboard trigger (`⌘K`), and episode selector.
 - Source row above the search bar: the video being searched on the left, a paste-a-YouTube-link field on the right. It reads as step one (pick a video), with the search bar as step two (ask).
 - Ergonomic 50/50 dual-column workspace:
-  - **Left (Grounded Synthesis Stream)**: Executive AI synthesis, structured insights, and cited evidence quote cards.
+  - **Left (Grounded Synthesis Stream)**: "About this video" summary card (overview, main argument, chapters), then Executive AI synthesis, structured insights, and cited evidence quote cards.
   - **Right (Playback Deck & Live Seeker)**: Pinned video player directly over a synchronized, auto-scrolling transcript feed.
 
 ## Motion

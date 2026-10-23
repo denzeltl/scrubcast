@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEpisodeChunks } from "@/lib/search";
-import { synthesizeAnswer } from "@/lib/groq";
+import { GROQ_MODEL, synthesizeAnswer } from "@/lib/groq";
 import { getEpisodeById } from "@/lib/episodes";
+import { getSummary } from "@/lib/summary";
 import { SearchResult } from "@/types/podcast";
 
 const MAX_QUERY_LENGTH = 500;
@@ -40,12 +41,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!getEpisodeById(episodeId)) {
+  const episode = getEpisodeById(episodeId);
+  if (!episode) {
     return NextResponse.json(
       { error: `Episode not found: ${episodeId}` },
       { status: 404 }
     );
   }
+  // Present once the background summary job has finished for this video
+  const summary = getSummary(episodeId);
 
   try {
     // 1. Vector Search via local Xenova bge-small-en-v1.5
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Groq Cloud grounded synthesis
     const { answer, citations, latencyMs: synthesisLatencyMs, isFallback } =
-      await synthesizeAnswer(query, matches);
+      await synthesizeAnswer(query, matches, summary, episode.duration);
 
     const totalLatency = Date.now() - tTotalStart;
 
@@ -74,6 +78,8 @@ export async function POST(req: NextRequest) {
         total: totalLatency,
       },
       isFallbackGroq: isFallback,
+      model: GROQ_MODEL,
+      usedSummary: Boolean(summary) && !isFallback,
     };
 
     return NextResponse.json(result);
