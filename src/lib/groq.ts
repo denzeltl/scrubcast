@@ -1,18 +1,10 @@
-import Groq from "groq-sdk";
 import { Citation, EpisodeSummary, SearchMatch } from "@/types/podcast";
+import { createChatCompletion, hasGroqKey } from "./groqKeys";
 import { formatTimestamp, parseTimestampToSeconds } from "./time";
-
-const groqApiKey = process.env.GROQ_API_KEY;
 
 // Groq retires models without much notice (llama-3.3-70b-versatile is gone), so the
 // model is overridable. List what your key can use: GET https://api.groq.com/openai/v1/models
 export const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
-
-export const groq = groqApiKey
-  ? new Groq({
-      apiKey: groqApiKey,
-    })
-  : null;
 
 export async function synthesizeAnswer(
   query: string,
@@ -29,7 +21,7 @@ export async function synthesizeAnswer(
   const t0 = Date.now();
 
   // If no Groq API Key is provided, use high-fidelity deterministic grounded synthesizer
-  if (!groq) {
+  if (!hasGroqKey()) {
     const fallbackResult = createFallbackSynthesis(query, matches);
     return {
       answer: fallbackResult.answer,
@@ -77,7 +69,8 @@ ${contextString}
 Synthesize a grounded answer with [MM:SS] citation chips:`;
 
   try {
-    const chatCompletion = await groq.chat.completions.create({
+    // Falls over to GROQ_API_KEY_BACKUP if the primary key is rejected or rate-limited
+    const chatCompletion = await createChatCompletion({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

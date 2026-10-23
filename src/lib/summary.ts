@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import Groq from "groq-sdk";
 import { EpisodeSummary, PodcastEpisode, SummaryChapter, SummaryStatus, TranscriptChunk } from "@/types/podcast";
+import { createChatCompletion, hasGroqKey } from "./groqKeys";
 import { formatTimestamp, parseTimestampToSeconds } from "./time";
 
 // Whole-video understanding. Retrieval only ever shows the answer model a handful of
@@ -23,9 +23,6 @@ const REDUCE_MAX_OUTPUT = 1800;
 
 const SUMMARY_DIR = path.join(process.cwd(), "data", "summaries");
 
-const groqApiKey = process.env.GROQ_API_KEY;
-// The SDK honours retry-after on 429s; give it room to wait out a busy minute
-const groq = groqApiKey ? new Groq({ apiKey: groqApiKey, maxRetries: 6 }) : null;
 
 type Job = { promise: Promise<void>; done: number; total: number; error?: string };
 
@@ -72,7 +69,7 @@ export function getSummaryStatus(episodeId: string): SummaryStatus {
   const summary = getSummary(episodeId);
   if (summary) return { state: "ready", summary };
   const job = jobs.get(episodeId);
-  if (!job) return { state: groq ? "none" : "unavailable" };
+  if (!job) return { state: hasGroqKey() ? "none" : "unavailable" };
   if (job.error) return { state: "error", error: job.error };
   return { state: "running", done: job.done, total: job.total };
 }
@@ -138,7 +135,7 @@ async function buildSummary(
   windows: TranscriptChunk[][],
   progress: { done: number }
 ): Promise<void> {
-  if (!groq) throw new Error("GROQ_API_KEY is not set");
+  if (!hasGroqKey()) throw new Error("GROQ_API_KEY is not set");
 
   // Map: chapters and notable claims per window
   const chapters: SummaryChapter[] = [];
@@ -217,11 +214,11 @@ async function waitForBudget(estimatedTokens: number): Promise<void> {
 }
 
 async function completeJson<T>(instructions: string, input: string, maxOutput: number): Promise<T> {
-  if (!groq) throw new Error("GROQ_API_KEY is not set");
   const estimated = Math.ceil((instructions.length + input.length) / 3.5) + maxOutput;
   await waitForBudget(estimated);
 
-  const completion = await groq.chat.completions.create({
+  // Background work can afford to wait out a busy minute if both keys are rate-limited
+  const completion = await createChatCompletion({
     model: SUMMARY_MODEL,
     messages: [
       { role: "system", content: instructions },
@@ -231,7 +228,7 @@ async function completeJson<T>(instructions: string, input: string, maxOutput: n
     max_completion_tokens: maxOutput,
     response_format: { type: "json_object" },
     ...(SUMMARY_MODEL.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" as const } : {}),
-  });
+  }, { maxWaitMs: 120_000 });
   spent.push({ at: Date.now(), tokens: completion.usage?.total_tokens ?? estimated });
 
   const content = completion.choices[0]?.message?.content ?? "";

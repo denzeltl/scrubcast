@@ -25,6 +25,12 @@ It does **not** yet:
 3. **Generate.** Those 5 chunks, each labeled with its `[MM:SS]` start time, go to Groq's `openai/gpt-oss-120b` (set `GROQ_MODEL` to use another). The prompt tells it to answer only from the excerpts and cite the timestamps.
 4. **Seek.** The UI turns every `[MM:SS]` in the answer into a button. Clicking it calls the YouTube IFrame API's `seekTo(seconds, true)`. Matching chunks also show up as pins on the player's timeline, and the transcript panel follows playback.
 
+### Backup key
+
+Set `GROQ_API_KEY_BACKUP` in `.env.local` and every Groq call (answers and summaries) fails over to it when the primary key is rejected (401/403: revoked, expired, mistyped) or rate-limited (429). A rejected key is skipped until the server restarts. A rate-limited key is retried after Groq's `retry-after`. If both keys are rate-limited, answers wait up to 10 seconds and summaries up to 2 minutes for one to free up.
+
+Groq counts rate limits per organization, not per key. A second key from the same account protects you from a bad key but adds no capacity. For more capacity, the backup has to be on a different plan, such as a paid developer tier. Opening extra free accounts to stack free limits is the kind of thing provider terms usually forbid, so check Groq's terms before you do it.
+
 Without a `GROQ_API_KEY`, or if the Groq call fails, step 3 falls back to quoting the two best-matching passages verbatim. Search and seeking still work.
 
 ## Whole-video questions
@@ -115,6 +121,7 @@ scrubcast/
 │   │   ├── summary.ts            # Background whole-video summary: chapters, overview, key points
 │   │   ├── search.ts             # Vector search over one episode
 │   │   ├── groq.ts               # Prompt, Groq call, citation parsing, fallback
+│   │   ├── groqKeys.ts           # Primary/backup key failover for every Groq call
 │   │   └── time.ts               # [MM:SS] formatting and parsing
 │   └── types/podcast.ts
 ├── DESIGN.md                     # Visual design contract (elan skill)
