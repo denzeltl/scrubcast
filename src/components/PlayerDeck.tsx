@@ -2,7 +2,8 @@
 
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from "react";
 import YouTube, { YouTubeProps } from "react-youtube";
-import { Play, Pause, RotateCcw, RotateCw, Radio } from "lucide-react";
+import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
+import { HalftoneScrubBar } from "@/components/HalftoneScrubBar";
 import { PodcastEpisode, SearchMatch } from "@/types/podcast";
 import { formatTimestamp } from "@/lib/time";
 
@@ -110,46 +111,25 @@ export const PlayerDeck = forwardRef<PlayerDeckHandle, PlayerDeckProps>(
       seek(currentTime + deltaSeconds, false);
     };
 
-    const handleScrubBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!playerRef.current) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-      seek(percentage * duration, false);
-    };
-
-    const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-
     return (
       <div className="bg-[var(--color-surface)] border border-[var(--color-border-deck)] rounded-2xl overflow-hidden shadow-xl flex flex-col">
-        {/* Console Deck Top Bar */}
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[#0f111a] border-b border-[var(--color-border-subtle)] text-xs font-mono">
-          <div className="flex items-center gap-2 min-w-0 text-[var(--color-ink)]">
-            <Radio className="w-3.5 h-3.5 shrink-0 text-[var(--color-accent-hover)]" />
-            <span className="hidden sm:inline shrink-0 font-semibold uppercase tracking-wider text-[11px] text-[var(--color-ink)]">
-              SYNCED VIEWPORT
-            </span>
-            <span className="hidden sm:inline text-[var(--color-ink-muted)]">|</span>
-            <span className="min-w-0 text-[var(--color-ink-muted)] truncate max-w-[280px]">
-              {episode.title}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[var(--color-surface-hover)] border border-[var(--color-border-deck)]">
-              <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-              <span className="text-[11px] text-[var(--color-accent-hover)] font-bold">
-                {formatTimestamp(currentTime)}
-              </span>
-              <span className="text-[10px] text-[var(--color-ink-faint)]">
-                / {formatTimestamp(duration)}
-              </span>
-            </div>
-          </div>
+        {/* Deck top bar: title and the live timecode readout */}
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[var(--color-well)] border-b border-[var(--color-border-subtle)]">
+          <p className="min-w-0 truncate text-sm font-medium text-[var(--color-ink)]" title={episode.title}>
+            {episode.title}
+          </p>
+          <p className="shrink-0 font-mono text-[var(--color-ink-faint)] text-xs" aria-label="Playback position">
+            <span className="text-base font-semibold text-[var(--color-accent)]">{formatTimestamp(currentTime)}</span>
+            {" / "}
+            {formatTimestamp(duration)}
+          </p>
         </div>
 
-        {/* Video Player Viewport */}
-        <div className="relative aspect-video w-full bg-black overflow-hidden group">
+        {/* Video */}
+        <div
+          className="relative aspect-video w-full bg-black bg-cover bg-center overflow-hidden"
+          style={{ backgroundImage: `url(https://i.ytimg.com/vi/${episode.youtubeId}/hqdefault.jpg)` }}
+        >
           <YouTube
             videoId={episode.youtubeId}
             onReady={onReady}
@@ -168,108 +148,62 @@ export const PlayerDeck = forwardRef<PlayerDeckHandle, PlayerDeckProps>(
           />
 
           {!isPlayerReady && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#0d0f15]/85 backdrop-blur-sm text-xs font-mono text-[var(--color-ink-muted)]">
+            <div className="absolute inset-0 flex items-end justify-start p-3 bg-gradient-to-t from-[var(--color-chassis)]/80 to-transparent text-xs font-mono text-[var(--color-ink-muted)]">
               <span className="flex items-center gap-2">
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-ping" />
-                CONNECTING YOUTUBE STREAM...
+                <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-playhead)] animate-pulse motion-reduce:animate-none" />
+                Loading video…
               </span>
             </div>
           )}
         </div>
 
-        {/* Interactive Scrub Timeline Bar with Citation Markers */}
-        <div className="px-4 pt-3 pb-1.5 bg-[#0f121a]">
-          <div
-            onClick={handleScrubBarClick}
-            className="relative h-2.5 w-full bg-[#1b202e] hover:bg-[#23293b] rounded-full cursor-pointer group transition-colors"
-            title="Click anywhere to scrub playback"
-          >
-            {/* Played progress fill */}
-            <div
-              className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[var(--color-secondary)] to-[var(--color-accent)] rounded-full transition-all duration-100"
-              style={{ width: `${progressPercent}%` }}
-            />
-
-            {/* Needle scrubber head */}
-            <div
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-2 border-[var(--color-accent)] rounded-full shadow-md scale-0 group-hover:scale-100 transition-transform"
-              style={{ left: `${progressPercent}%` }}
-            />
-
-            {/* Semantic Citation Markers on Timeline */}
-            {matches.map((m) => {
-              const markerPos =
-                duration > 0 ? (m.chunk.startTime / duration) * 100 : 0;
-              return (
-                <div
-                  key={m.chunk.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    seek(m.chunk.startTime, true);
-                  }}
-                  className="absolute top-0 bottom-0 w-1.5 bg-[var(--color-secondary)] hover:bg-white rounded-full z-10 transition-transform hover:scale-y-150 cursor-pointer shadow-[0_0_8px_rgba(56,189,248,0.8)]"
-                  style={{ left: `${markerPos}%` }}
-                  title={`[${formatTimestamp(m.chunk.startTime)}] ${m.chunk.speaker}: ${m.chunk.text.slice(0, 60)}...`}
-                />
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] font-mono text-[var(--color-ink-faint)] mt-1.5">
-            <span>00:00</span>
-            <span className="text-[var(--color-secondary)] flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-secondary)] inline-block" />
-              BLUE PINS = VECTOR MATCHES
-            </span>
-            <span>{formatTimestamp(duration)}</span>
-          </div>
+        {/* Halftone scrub bar: the signature */}
+        <div className="px-4 pt-9 pb-2 bg-[var(--color-well)]">
+          <HalftoneScrubBar
+            episode={episode}
+            duration={duration}
+            currentTime={currentTime}
+            matches={matches}
+            onSeek={seek}
+          />
         </div>
 
-        {/* Transport Controls Deck */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0f111a] border-t border-[var(--color-border-subtle)]">
+        {/* Transport */}
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[var(--color-well)] border-t border-[var(--color-border-subtle)]">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => handleSkip(-10)}
-              className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border-deck)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors active:scale-95 cursor-pointer"
-              title="Seek back 10 seconds"
+              aria-label="Back 10 seconds"
+              title="Back 10 seconds"
+              className="group grid place-items-center w-11 h-11 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-deck)] text-[var(--color-ink-muted)] cursor-pointer transition-[color,background-color,transform] duration-[140ms] [@media(hover:hover)]:hover:text-[var(--color-ink)] [@media(hover:hover)]:hover:bg-[var(--color-surface-hover)] active:scale-[0.92] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4 transition-transform duration-[140ms] [@media(hover:hover)]:group-hover:-rotate-12 motion-reduce:transition-none" />
             </button>
 
             <button
+              type="button"
               onClick={handlePlayPause}
-              className="px-4 py-2 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer"
+              className="h-11 px-5 rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-display font-extrabold text-sm tracking-[-0.01em] flex items-center gap-2 cursor-pointer transition-[background-color,transform] duration-[140ms] ease-[cubic-bezier(0.16,1,0.3,1)] [@media(hover:hover)]:hover:bg-[var(--color-accent-hover)] [@media(hover:hover)]:hover:-translate-y-px active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-well)] motion-reduce:hover:translate-y-0"
             >
-              {isPlaying ? (
-                <>
-                  <Pause className="w-4 h-4 fill-current" />
-                  <span>PAUSE</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>PLAY</span>
-                </>
-              )}
+              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+              <span key={isPlaying ? "pause" : "play"} className="animate-label-in">
+                {isPlaying ? "Pause" : "Play"}
+              </span>
             </button>
 
             <button
+              type="button"
               onClick={() => handleSkip(10)}
-              className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border-deck)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors active:scale-95 cursor-pointer"
-              title="Seek forward 10 seconds"
+              aria-label="Forward 10 seconds"
+              title="Forward 10 seconds"
+              className="group grid place-items-center w-11 h-11 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-deck)] text-[var(--color-ink-muted)] cursor-pointer transition-[color,background-color,transform] duration-[140ms] [@media(hover:hover)]:hover:text-[var(--color-ink)] [@media(hover:hover)]:hover:bg-[var(--color-surface-hover)] active:scale-[0.92] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             >
-              <RotateCw className="w-4 h-4" />
+              <RotateCw className="w-4 h-4 transition-transform duration-[140ms] [@media(hover:hover)]:group-hover:rotate-12 motion-reduce:transition-none" />
             </button>
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-mono text-[var(--color-ink-muted)]">
-            <span className="hidden sm:inline text-[var(--color-ink-faint)]">
-              SPEAKER:
-            </span>
-            <span className="font-semibold text-[var(--color-ink)]">
-              {episode.guest}
-            </span>
-          </div>
+          <p className="min-w-0 truncate text-xs text-[var(--color-ink-muted)]">{episode.showTitle}</p>
         </div>
       </div>
     );

@@ -11,7 +11,8 @@ import { TranscriptFeed } from "@/components/TranscriptFeed";
 import { SourceRow } from "@/components/SourceRow";
 import { useEpisodeSummary } from "@/components/useEpisodeSummary";
 import { SummaryCard } from "@/components/SummaryCard";
-import { AlertCircle, Sparkles, Terminal } from "lucide-react";
+import { AlertCircle, Sparkles } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 interface WorkbenchProps {
   episodes: PodcastEpisode[];
@@ -99,6 +100,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   const summaryStatus = useEpisodeSummary(currentEpisode.id);
 
   const playerRef = useRef<PlayerDeckHandle>(null);
+  const playerDeckRef = useRef<HTMLDivElement>(null);
   // Only the most recent request may write results, so a slow answer for a
   // previous episode or query can't overwrite a newer one
   const latestRequestRef = useRef(0);
@@ -156,6 +158,16 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   const handleSeek = (seconds: number) => {
     setActiveSecond(seconds);
     playerRef.current?.seekTo(seconds);
+    // Stacked layout: the player may be scrolled away from the chip that was clicked.
+    // Bring it back so the seek is visible.
+    const deck = playerDeckRef.current;
+    if (deck && window.matchMedia("(max-width: 1023px)").matches) {
+      const top = deck.getBoundingClientRect().top;
+      if (top < 0 || top > window.innerHeight * 0.6) {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        deck.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      }
+    }
   };
 
   // When episode changes, clear the old episode's results & re-run with its default query
@@ -190,13 +202,12 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-chassis)] text-[var(--color-ink)] flex flex-col font-sans selection:bg-[var(--color-accent)] selection:text-white">
+    <div className="min-h-screen bg-[var(--color-chassis)] text-[var(--color-ink)] flex flex-col font-sans selection:bg-[var(--color-accent)] selection:text-[var(--color-accent-ink)]">
       {/* Top Navigation & Workspace Header */}
       <StudioHeader
         episodes={episodes}
         currentEpisode={currentEpisode}
         onSelectEpisode={handleSelectEpisode}
-        llmModel={llmModel}
       />
 
       {/* Main Intelligence Workspace */}
@@ -223,8 +234,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
 
         {/* 50/50 Dual Stage Split Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column (Intelligence Flow: Synthesis & Evidence): 6 cols */}
-          <div className="lg:col-span-6 space-y-6">
+          {/* Left column: the answer first (right under the question), then its evidence.
+              Below lg both columns dissolve (display: contents) so each card can be ordered:
+              player, answer, about, passages, transcript. */}
+          <div className="contents lg:block lg:col-span-6 lg:space-y-6">
+            <div className="order-2 lg:order-none space-y-6">
             {searchError && (
               <div
                 role="alert"
@@ -235,15 +249,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
               </div>
             )}
 
-            {/* What the whole video covers: overview, main argument, chapters */}
-            <SummaryCard
-              key={`summary-${currentEpisode.id}`}
-              status={summaryStatus}
-              onSeek={handleSeek}
-              activeSecond={activeSecond}
-            />
-
-            {/* Sub-second Grounded AI Synthesis with [MM:SS] Citation Chips */}
+            {/* The answer, with [MM:SS] chips that seek the player */}
             {searchResult ? (
               <SynthesizedAnswer
                 searchResult={searchResult}
@@ -260,19 +266,24 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
                 </p>
               </div>
             )}
+            </div>
 
-            {/* Top Cosine Similarity Vector Matches */}
+            {/* The passages the answer drew on */}
             {searchResult && (
+              <div className="order-4 lg:order-none">
               <SemanticMatches
                 matches={searchResult.topChunks}
                 onSeek={handleSeek}
                 activeSecond={activeSecond}
               />
+              </div>
             )}
           </div>
 
-          {/* Right Column (Playback Viewport & Transcript Rail): 6 cols, sticky on desktop */}
-          <div className="lg:col-span-6 space-y-6 lg:sticky lg:top-20">
+          {/* Right column: player, what the video covers, transcript. Pinned on desktop; when
+              it's taller than the screen it scrolls on its own so nothing becomes unreachable. */}
+          <div className="contents lg:block lg:col-span-6 lg:space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+            <div ref={playerDeckRef} className="order-1 lg:order-none scroll-mt-20">
             {/* YouTube Interactive Video Deck; keyed so player state resets per episode */}
             <PlayerDeck
               key={`player-${currentEpisode.id}`}
@@ -281,8 +292,20 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
               matches={searchResult?.topChunks || []}
               onTimeUpdate={setActiveSecond}
             />
+            </div>
+
+            {/* What the whole video covers: overview, main argument, chapters (they seek the player above) */}
+            <div className="order-3 lg:order-none">
+            <SummaryCard
+              key={`summary-${currentEpisode.id}`}
+              status={summaryStatus}
+              onSeek={handleSeek}
+              activeSecond={activeSecond}
+            />
+            </div>
 
             {/* Synchronized Transcript Feed; keyed so the speaker filter resets per episode */}
+            <div className="order-5 lg:order-none">
             <TranscriptFeed
               key={`transcript-${currentEpisode.id}`}
               episode={currentEpisode}
@@ -290,22 +313,21 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
               onSeek={handleSeek}
               highlightedChunkId={highlightedChunkId}
             />
+            </div>
           </div>
         </div>
       </main>
 
-      {/* Modern Console Footer */}
-      <footer className="border-t border-[var(--color-border-subtle)] bg-[#090b10] px-4 lg:px-8 py-3.5 mt-12 text-xs font-mono text-[var(--color-ink-faint)]">
+      {/* Footer: what powers it */}
+      <footer className="border-t border-[var(--color-border-subtle)] bg-[var(--color-chassis)] px-4 lg:px-8 py-3.5 mt-12 text-xs font-mono text-[var(--color-ink-faint)]">
         <div className="max-w-[1520px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Terminal className="w-3.5 h-3.5 text-[var(--color-accent-hover)]" />
-            <span>SCRUBCAST INTELLIGENCE WORKBENCH • LOCAL VECTOR RAG</span>
+            <BrandMark size={18} />
+            <span>Scrubcast answers from the video&apos;s own captions.</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span>Model: Xenova/bge-small-en-v1.5 (384-d)</span>
-            <span>•</span>
-            <span>LLM: Groq {llmModel}</span>
-          </div>
+          <p className="hidden md:block text-right">
+            Answers by {llmModel.split("/").pop()} on Groq
+          </p>
         </div>
       </footer>
     </div>

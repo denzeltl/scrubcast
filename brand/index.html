@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scrubcast brand</title>
+<link rel="icon" href="favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@800&family=Inter:wght@400;500&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--deck:#0a0b0a;--panel:#121412;--line:#262a25;--paper:#efece2;--muted:#9aa093;--amber:#ffb020;--dim:#5c4310;--pale:#ffe3a3;--red:#ff4d3d}
+*{box-sizing:border-box}body{margin:0;background:var(--deck);color:var(--paper);font:16px/1.6 Inter,system-ui,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:48px 20px 80px;display:grid;gap:48px}
+h1{font:800 48px/1 "Inter Tight",sans-serif;letter-spacing:-.045em;margin:0}
+h2{font:500 11px/1 "Geist Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+p{color:var(--muted);max-width:62ch;margin:0}
+.row{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px;display:grid;place-items:center}
+.card.light{background:var(--paper)}
+.clear{position:relative;padding:24px;outline:1px dashed var(--amber);outline-offset:-1px;border-radius:12px}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw div{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.sw i{display:block;height:64px}.sw span{display:block;padding:10px 12px;font:12px/1.4 "Geist Mono",monospace;color:var(--muted)}.sw b{color:var(--paper);display:block;font-weight:500}
+.mono{font-family:"Geist Mono",monospace}
+</style></head><body><main>
+<header><h1>Scrubcast brand</h1><p style="margin-top:12px">A halftone sound wave cut by a red playhead. Dots before the playhead are lit amber, dots after it are dim: what's been played, and what hasn't. The same wave is the app's scrub bar.</p></header>
+
+<section><h2>Logo</h2><div class="row">
+  <div class="card"><img src="logo.svg" alt="Scrubcast logo" width="420" height="96"></div>
+  <div class="card light"><img src="logo-inverse.svg" alt="Scrubcast logo, inverse" width="420" height="96"></div>
+  <div class="card light"><img src="logo-mono.svg" alt="Scrubcast logo, one colour" width="420" height="96"></div>
+</div></section>
+
+<section><h2>Mark, clear space and minimum size</h2><div class="row">
+  <div class="card"><div class="clear"><img src="mark.svg" alt="Scrubcast mark" width="96" height="96"></div></div>
+  <div class="card"><img src="favicon.svg" alt="" width="32" height="32"></div>
+  <div class="card"><img src="favicon.svg" alt="" width="16" height="16"></div>
+</div><p style="margin-top:14px">Keep clear space of a quarter of the mark's width (dashed line) on every side. Below 40px use <span class="mono">favicon.svg</span>, which has bigger dots; it holds up at 16px. Don't recolour the playhead, add gradients or glows, or set the wordmark in another typeface.</p></section>
+
+<section><h2>Palette</h2><div class="sw">
+  <div><i style="background:#0a0b0a"></i><span><b>Deck</b>#0a0b0a page</span></div>
+  <div><i style="background:#121412"></i><span><b>Panel</b>#121412 surfaces</span></div>
+  <div><i style="background:#efece2"></i><span><b>Paper</b>#efece2 text</span></div>
+  <div><i style="background:#ffb020"></i><span><b>Amber</b>#ffb020 signal, action</span></div>
+  <div><i style="background:#5c4310"></i><span><b>Dim amber</b>#5c4310 unplayed</span></div>
+  <div><i style="background:#ffe3a3"></i><span><b>Pale amber</b>#ffe3a3 answer moments</span></div>
+  <div><i style="background:#ff4d3d"></i><span><b>Playhead</b>#ff4d3d now, only</span></div>
+</div></section>
+
+<section><h2>Type</h2>
+  <p style="font:800 40px/1.05 'Inter Tight';letter-spacing:-.045em;color:var(--paper)">Ask a video anything.</p>
+  <p style="margin-top:12px">Inter Tight 800 for the wordmark and headings · Inter for reading · <span class="mono" style="color:var(--amber)">Geist Mono 01:28:18</span> for every number.</p>
+</section>
+</main></body></html>

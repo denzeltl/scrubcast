@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
+import { cleanCaption } from "@/lib/captions";
 import { PodcastEpisode } from "@/types/podcast";
 import { formatTimestamp } from "@/lib/time";
 import { FileText, Play, ArrowDownCircle } from "lucide-react";
@@ -61,7 +62,7 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           <FileText className="w-4 h-4 text-[var(--color-accent-hover)]" />
           <h3 className="min-w-0 [overflow-wrap:anywhere] text-xs font-mono font-bold uppercase tracking-wider text-[var(--color-ink)]">
-            Synchronized Transcript ({episode.chunks.length} Chunks)
+            Transcript
           </h3>
         </div>
 
@@ -77,22 +78,25 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
             title="Toggle auto-follow playback position"
           >
             <ArrowDownCircle className="w-3 h-3" />
-            <span>FOLLOW</span>
+            <span>Follow playback</span>
           </button>
 
           {/* Speaker filter selector */}
+          {/* Only worth a filter when the transcript names more than one speaker */}
+          {speakers.length > 1 && (
           <select
             value={filterSpeaker}
             onChange={(e) => setFilterSpeaker(e.target.value)}
-            className="max-w-[180px] text-[11px] font-sans bg-[#0d0f15] border border-[var(--color-border-deck)] text-[var(--color-ink)] rounded px-2 py-0.5 outline-none cursor-pointer"
+            className="max-w-[180px] text-[11px] font-sans bg-[var(--color-chassis)] border border-[var(--color-border-deck)] text-[var(--color-ink)] rounded px-2 py-0.5 outline-none cursor-pointer"
           >
-            <option value="all">All Speakers</option>
+            <option value="all">All speakers</option>
             {speakers.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
             ))}
           </select>
+          )}
         </div>
       </div>
 
@@ -113,10 +117,10 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
               onClick={() => onSeek(chunk.startTime)}
               className={`p-3 rounded-xl border transition-all cursor-pointer group ${
                 isPlaying
-                  ? "bg-[#181c2b] border-[var(--color-accent)] shadow-md"
+                  ? "bg-[var(--color-surface-active)] border-[var(--color-accent)] shadow-md"
                   : isHighlighted
-                  ? "bg-[#101422] border-[var(--color-secondary)]/50"
-                  : "bg-[#0f121a] border-[var(--color-border-deck)] hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-surface-hover)]"
+                  ? "bg-[var(--color-well)] border-[var(--color-secondary)]/50"
+                  : "bg-[var(--color-well)] border-[var(--color-border-deck)] hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-surface-hover)]"
               }`}
             >
               <div className="flex items-center justify-between text-xs font-mono mb-1">
@@ -124,14 +128,15 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
                   <span
                     className={`px-1.5 py-0.5 rounded text-[11px] font-bold flex items-center gap-1 transition-colors ${
                       isPlaying
-                        ? "bg-[var(--color-accent)] text-white"
-                        : "bg-[var(--color-surface-hover)] text-[var(--color-accent-hover)] group-hover:bg-[var(--color-accent)] group-hover:text-white"
+                        ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
+                        : "bg-[var(--color-surface-hover)] text-[var(--color-accent-hover)] group-hover:bg-[var(--color-accent)] group-hover:text-[var(--color-accent-ink)]"
                     }`}
                   >
                     <Play className="w-2.5 h-2.5 fill-current" />
                     [{timecode}]
                   </span>
 
+                  {chunk.speaker !== "Speaker" && (
                   <span
                     className={`font-semibold text-xs ${
                       chunk.speaker === episode.guest
@@ -141,12 +146,13 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
                   >
                     {chunk.speaker}
                   </span>
+                  )}
                 </div>
 
                 {isPlaying && (
                   <span className="flex items-center gap-1 text-[10px] text-[var(--color-accent-hover)] font-bold animate-pulse">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
-                    NOW PLAYING
+                    Now playing
                   </span>
                 )}
               </div>
@@ -158,7 +164,7 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
                     : "text-[var(--color-ink-muted)] group-hover:text-[var(--color-ink)]"
                 }`}
               >
-                {chunk.text}
+                {cleanCaption(chunk.text)}
               </p>
             </div>
           );

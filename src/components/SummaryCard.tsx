@@ -117,8 +117,8 @@ function ChapterRow({
       <span
         className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[11px] font-bold tabular-nums transition-colors duration-[140ms] ${
           isActive
-            ? "bg-[var(--color-accent)] text-white"
-            : "bg-[var(--color-accent-faint)] text-[var(--color-accent-hover)] [@media(hover:hover)]:group-hover:bg-[var(--color-accent)] [@media(hover:hover)]:group-hover:text-white"
+            ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
+            : "bg-[var(--color-accent-faint)] text-[var(--color-accent-hover)] [@media(hover:hover)]:group-hover:bg-[var(--color-accent)] [@media(hover:hover)]:group-hover:text-[var(--color-accent-ink)]"
         }`}
       >
         <Play className="w-2.5 h-2.5 fill-current" />

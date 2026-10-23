@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter, Inter_Tight } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Inter for reading, Inter Tight 800 for headings, Geist Mono for every number
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
+  subsets: ["latin"],
+  weight: ["600", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -13,9 +20,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scrubcast — Ask a podcast anything, jump to the answer",
+  title: "Scrubcast — Ask a video anything, jump to the answer",
   description:
-    "Ask questions about a podcast episode. Scrubcast finds the relevant transcript passages, answers with timestamp citations, and seeks the YouTube player to the exact moment.",
+    "Ask questions about any YouTube video. Scrubcast finds the moments that answer you, cites their timestamps, and jumps the player to the exact second.",
 };
 
 export default function RootLayout({
@@ -26,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${interTight.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0d0f15] text-[#f1f4f9]">{children}</body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

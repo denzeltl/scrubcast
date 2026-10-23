@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { cleanCaption } from "@/lib/captions";
 import { Sparkles, Play, Clock, Quote, AlertCircle } from "lucide-react";
 import { SearchResult } from "@/types/podcast";
 import { parseTimestampToSeconds } from "@/lib/time";
@@ -9,6 +10,14 @@ interface SynthesizedAnswerProps {
   searchResult: SearchResult;
   onSeek: (seconds: number) => void;
   activeSecond?: number;
+}
+
+/**
+ * " ." or " ," after a citation chip would sit apart from it and could wrap onto its
+ * own line; drop the space so the punctuation hugs the chip.
+ */
+function gluePunctuation(text: string): string {
+  return text.replace(/^\s+(?=[.,;:!?)])/, "");
 }
 
 /**
@@ -46,9 +55,9 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
       const timeStr = match[1];      // e.g. "03:45"
       const seconds = parseTimestampToSeconds(timeStr);
 
-      // Push text before the match
+      // Push text before the match (punctuation right after a previous chip stays glued to it)
       if (matchIndex > lastIndex) {
-        parts.push(...renderInline(text.substring(lastIndex, matchIndex), matchIndex));
+        parts.push(...renderInline(gluePunctuation(text.substring(lastIndex, matchIndex)), matchIndex));
       }
 
       // Check if this citation is currently playing (within 8s window)
@@ -58,10 +67,10 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
         <button
           key={`chip-${matchIndex}`}
           onClick={() => onSeek(seconds)}
-          className={`inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer select-none active:scale-95 shadow-sm ${
+          className={`inline-flex items-center gap-1 ml-1 px-2.5 py-0.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer select-none active:scale-95 shadow-sm ${
             isActive
-              ? "bg-[var(--color-accent)] text-white ring-2 ring-[var(--color-accent)]/50 animate-iris-pulse"
-              : "bg-[#181c2b] border border-[var(--color-accent)]/40 text-[var(--color-accent-hover)] hover:bg-[var(--color-accent)] hover:text-white"
+              ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] ring-2 ring-[var(--color-accent)]/50 animate-iris-pulse"
+              : "bg-[var(--color-surface-active)] border border-[var(--color-accent)]/40 text-[var(--color-accent-hover)] hover:bg-[var(--color-accent)] hover:text-[var(--color-accent-ink)]"
           }`}
           title={`Click to jump playback to ${timeStr}`}
         >
@@ -74,7 +83,7 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
     }
 
     if (lastIndex < text.length) {
-      parts.push(...renderInline(text.substring(lastIndex), lastIndex));
+      parts.push(...renderInline(gluePunctuation(text.substring(lastIndex)), lastIndex));
     }
 
     return parts;
@@ -89,26 +98,22 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[var(--color-ink)] flex items-center gap-2">
-              Grounded Intelligence Synthesis
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#0d0f15] text-[var(--color-secondary)] border border-[var(--color-border-deck)]">
-                {isFallbackGroq ? "extractive fallback" : model?.split("/").pop() ?? "LLM"}
-              </span>
+            <h3
+              className="font-display text-base font-extrabold tracking-[-0.02em] text-[var(--color-ink)]"
+              title={isFallbackGroq ? "Closest passages, quoted" : `Written by ${model ?? "an LLM"} on Groq`}
+            >
+              {isFallbackGroq ? "Closest passages" : "Answer"}
             </h3>
             <p className="text-xs text-[var(--color-ink-muted)]">
-              Sub-second reasoning with magnetic timestamp citations
+              Written from what&apos;s said in the video. Click a timestamp to jump there.
             </p>
           </div>
         </div>
 
         {/* Latency badge breakdown */}
-        <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ink-faint)] bg-[#0d0f15] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
-          <Clock className="w-3.5 h-3.5 text-[var(--color-secondary)]" />
-          <span>Embed: {latencyMs.embedding}ms</span>
-          <span>•</span>
-          <span>Search: {latencyMs.search}ms</span>
-          <span>•</span>
-          <span>{isFallbackGroq ? "Synth" : "Groq"}: {latencyMs.synthesis}ms</span>
+        <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ink-faint)] bg-[var(--color-chassis)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
+          <Clock className="w-3.5 h-3.5 text-[var(--color-ink-faint)]" />
+          <span>Answered in {(latencyMs.total / 1000).toFixed(1)} s</span>
         </div>
       </div>
 
@@ -130,7 +135,7 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
       )}
 
       {/* Main synthesized answer text with generous 16px body */}
-      <div className="text-[15px] md:text-base leading-relaxed text-[#e2e8f0] font-sans space-y-3">
+      <div className="text-[15px] md:text-base leading-relaxed text-[var(--color-ink)] font-sans space-y-3">
         <div className="whitespace-pre-line">
           {renderSynthesizedText(answer)}
         </div>
@@ -141,14 +146,14 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
         <div className="border-t border-[var(--color-border-subtle)] pt-4 space-y-2.5">
           <h4 className="text-xs font-mono font-semibold uppercase text-[var(--color-ink-muted)] tracking-wider flex items-center gap-1.5">
             <Quote className="w-3.5 h-3.5 text-[var(--color-secondary)]" />
-            Direct Audio Evidence ({citations.length})
+            Where it&apos;s said ({citations.length})
           </h4>
           <div className="grid grid-cols-1 gap-2.5">
             {citations.map((c, idx) => (
               <button
                 key={idx}
                 onClick={() => onSeek(c.seconds)}
-                className="group flex flex-col text-left p-3 rounded-xl bg-[#0f121a] border border-[var(--color-border-deck)] border-l-2 border-l-[var(--color-accent)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-surface-hover)] transition-all cursor-pointer active:scale-98"
+                className="group flex flex-col text-left p-3 rounded-xl bg-[var(--color-well)] border border-[var(--color-border-deck)] border-l-2 border-l-[var(--color-accent)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-surface-hover)] transition-all cursor-pointer active:scale-98"
               >
                 <div className="flex items-center justify-between text-xs font-mono mb-1">
                   <span className="font-bold text-[var(--color-accent-hover)] flex items-center gap-1">
@@ -156,11 +161,11 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
                     [{c.timestamp}]
                   </span>
                   <span className="text-[11px] text-[var(--color-ink-muted)]">
-                    Speaker: {c.speaker}
+                    {c.speaker === "Speaker" ? "" : c.speaker}
                   </span>
                 </div>
                 <p className="text-xs text-[var(--color-ink-muted)] group-hover:text-[var(--color-ink)] line-clamp-2 transition-colors italic">
-                  &ldquo;{c.snippet}&rdquo;
+                  &ldquo;{cleanCaption(c.snippet)}&rdquo;
                 </p>
               </button>
             ))}

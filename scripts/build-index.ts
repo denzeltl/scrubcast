@@ -6,19 +6,19 @@ import path from "path";
 // built-in-summaries.json.
 //
 // To change the featured videos:
-//   1. Paste each link into the running app and wait for "About this video" to fill in
+//   1. Run the app with SCRUBCAST_SAVE_LIBRARY=1, paste each link, and wait for "About this video" to fill in
 //      (that writes data/library/<id>.json and data/summaries/<id>.json)
 //   2. Update FEATURED below (ids are "yt-" + the YouTube video id)
 //   3. npm run index
 
 const FEATURED: { id: string; suggestedQueries: string[] }[] = [
   {
-    id: "yt-TitZV6k8zfA", // Marques Brownlee: Humane AI Pin review (25 min)
+    id: "yt-scwlR0QHGOk", // Marques Brownlee: The new Tesla Roadster, my honest reaction (23 min)
     suggestedQueries: [
-      "What's MKBHD's overall verdict on the AI Pin?",
-      "How bad is the battery life?",
-      "Why does he say a phone does it better?",
-      "What does he like about the hardware?",
+      "What's MKBHD's honest reaction to the new Roadster?",
+      "Will the Roadster ever be street-legal?",
+      "How does the fan-powered downforce work?",
+      "Was the flying demo real?",
     ],
   },
   {

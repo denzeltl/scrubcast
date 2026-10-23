@@ -1,67 +1,58 @@
 {
-  "yt-TitZV6k8zfA": {
-    "overview": "Marques Brownlee reviews the Humane AI Pin, a $700 wearable computer, and delivers a largely negative assessment. He starts with an overview, then examines hardware, user experience, design flaws, app limitations, and finally compares it to smartphones, concluding it falls short.",
-    "mainArgument": "The central thesis is that the Humane AI Pin is an overpriced, underperforming device that lacks essential functionality and integration, making it inferior to existing smartphones.",
+  "yt-scwlR0QHGOk": {
+    "overview": "Marques Brownlee reviews Tesla’s new Roadster, recounting the dramatic launch event, dissecting the car’s design and performance claims, and questioning its street‑legal viability and practicality. He moves from event highlights to technical specs, then to skepticism about the flying demo and the likelihood of a real product launch.",
+    "mainArgument": "MKB’s central thesis is that while Tesla’s Roadster is an impressive marketing spectacle with ambitious performance claims, it remains doubtful that the vehicle will ever be street‑legal, practical, or delivered on schedule. He repeatedly questions the feasibility of the fan‑powered downforce, thrust thrusters, and the overall design.",
     "keyPoints": [
       {
-        "seconds": 0,
-        "text": "Introduces the Humane AI Pin as a futuristic wearable computer with a negative tone."
+        "seconds": 2,
+        "text": "Event highlights include wall‑climbing, upside‑down driving, and flying stunts, showcasing the Roadster’s cyber‑inspired design."
       },
       {
-        "seconds": 262,
-        "text": "Details the pin’s solid aluminum build, charging accessories, and magnetic attachment system."
+        "seconds": 315,
+        "text": "Discussion of the four variants focuses on the fan‑powered downforce system, thrust thrusters, and claimed 0‑60 acceleration of 0.6 seconds."
       },
       {
-        "seconds": 492,
-        "text": "Highlights performance problems, battery life issues, overheating, and overall usability."
+        "seconds": 785,
+        "text": "Brownlee argues the Roadster will never be street‑legal, citing Tesla’s website and invite‑only sales model."
       },
       {
-        "seconds": 798,
-        "text": "Critiques notification light placement, camera quality, and hub reliability."
+        "seconds": 849,
+        "text": "He questions whether the flying demo is a real engineering feat or merely a marketing stunt, raising safety concerns."
       },
       {
-        "seconds": 860,
-        "text": "Notes the lack of major apps like Uber, Spotify, and Gmail."
-      },
-      {
-        "seconds": 1148,
-        "text": "Argues that lack of phone integration hampers assistant capabilities and makes it inferior to smartphones."
+        "seconds": 921,
+        "text": "Brownlee contrasts promised specs—carbon‑fiber body, 1,700 kg weight, 1,300 hp—with the prototype’s heavier weight and limited range."
       }
     ],
     "chapters": [
       {
-        "startTime": 0,
-        "title": "Product Overview",
-        "summary": "Introduces the Humane AI Pin as a futuristic wearable computer and sets up the review’s negative tone."
+        "startTime": 2,
+        "title": "Event Highlights & Design",
+        "summary": "The speaker recounts Tesla’s dramatic product demo, noting the new Roadster’s cyber‑inspired design and the spectacle of wall‑climbing, upside‑down driving, and flying stunts."
       },
       {
-        "startTime": 262,
-        "title": "Hardware & Design",
-        "summary": "Details the pin’s solid aluminum build, charging accessories, and magnetic attachment system."
+        "startTime": 315,
+        "title": "Fan System & Performance Specs",
+        "summary": "The discussion shifts to the Roadster’s four variants, focusing on the fan‑powered downforce system, thrust thrusters, and projected acceleration figures up to 0‑60 in 0.6 seconds."
       },
       {
-        "startTime": 492,
-        "title": "User Experience & Issues",
-        "summary": "Discusses the pin’s performance problems, battery life, overheating, and overall usability."
+        "startTime": 785,
+        "title": "Street‑legal doubts",
+        "summary": "The speaker argues the Roadster will never be street‑legal, citing Tesla’s own website and the invite‑only sales model."
       },
       {
-        "startTime": 798,
-        "title": "Design & Usability Issues",
-        "summary": "The speaker critiques the pin’s notification light placement, camera quality, and hub reliability, noting the device’s limited functionality and poor visual output."
+        "startTime": 849,
+        "title": "Demo vs. Practicality",
+        "summary": "He questions whether the dramatic flying demo is a real engineering feat or just a marketing stunt, noting concerns about safety and feasibility."
       },
       {
-        "startTime": 860,
-        "title": "App Ecosystem Limitations",
-        "summary": "The pin lacks major apps like Uber, Spotify, and Gmail, restricting its usefulness compared to smartphones."
-      },
-      {
-        "startTime": 1148,
-        "title": "Standalone vs. Phone Integration",
-        "summary": "The speaker argues that the pin’s lack of phone integration hampers its assistant capabilities, making it inferior to smartphones for everyday tasks."
+        "startTime": 921,
+        "title": "Technical Specs & Reality",
+        "summary": "The speaker lists promised specs—carbon‑fiber body, 1,700 kg weight, rear‑wheel drive, 1,300 hp—and contrasts them with the current prototype’s heavier weight and limited range."
       }
     ],
     "model": "openai/gpt-oss-20b",
-    "createdAt": "2026-10-23T06:31:15.113Z"
+    "createdAt": "2026-10-23T16:31:07.857Z"
   },
   "yt-1x-i9z617z4": {
     "overview": "Kurzgesagt – In a Nutshell explains how the channel’s revenue streams evolved, from early ad revenue to a diversified mix that now includes a shop, Patreon, sponsorships, and institutional funding. The video follows a chronological narrative, beginning with the founder’s dropout story, then detailing the shift in funding models, and finally breaking down the current income percentages. It ends with a discussion of editorial independence and contractual safeguards with sponsors.",
