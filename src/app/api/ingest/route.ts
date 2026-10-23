@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from "next/server";
+import { IngestError, ingestYouTubeUrl } from "@/lib/ingest";
+import { stripEmbeddings } from "@/lib/episodes";
+
+// Long videos take a while to embed on CPU
+export const maxDuration = 300;
+
+export async function POST(req: NextRequest) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Request body must be JSON" }, { status: 400 });
+  }
+
+  const { url } = (body ?? {}) as Record<string, unknown>;
+  if (typeof url !== "string" || !url.trim()) {
+    return NextResponse.json({ error: "A YouTube link is required" }, { status: 400 });
+  }
+
+  const t0 = Date.now();
+  try {
+    const { episode, created } = await ingestYouTubeUrl(url);
+    return NextResponse.json({
+      episode: stripEmbeddings(episode),
+      created,
+      latencyMs: Date.now() - t0,
+    });
+  } catch (error: unknown) {
+    if (error instanceof IngestError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    console.error("Ingest route error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Ingest failed" },
+      { status: 500 }
+    );
+  }
+}

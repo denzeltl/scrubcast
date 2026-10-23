@@ -1,0 +1,157 @@
+"use client";
+
+import React from "react";
+import { Sparkles, Play, Clock, Quote, AlertCircle } from "lucide-react";
+import { SearchResult } from "@/types/podcast";
+import { parseTimestampToSeconds } from "@/lib/time";
+
+interface SynthesizedAnswerProps {
+  searchResult: SearchResult;
+  onSeek: (seconds: number) => void;
+  activeSecond?: number;
+}
+
+export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
+  searchResult,
+  onSeek,
+  activeSecond = 0,
+}) => {
+  const { answer, citations, latencyMs, isFallbackGroq } = searchResult;
+
+  // Render text and replace [MM:SS] with clickable citation buttons
+  const renderSynthesizedText = (text: string) => {
+    const timestampRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = timestampRegex.exec(text)) !== null) {
+      const matchIndex = match.index;
+      const rawTimestamp = match[0]; // e.g. "[03:45]"
+      const timeStr = match[1];      // e.g. "03:45"
+      const seconds = parseTimestampToSeconds(timeStr);
+
+      // Push text before the match
+      if (matchIndex > lastIndex) {
+        parts.push(text.substring(lastIndex, matchIndex));
+      }
+
+      // Check if this citation is currently playing (within 8s window)
+      const isActive = Math.abs(activeSecond - seconds) < 8;
+
+      parts.push(
+        <button
+          key={`chip-${matchIndex}`}
+          onClick={() => onSeek(seconds)}
+          className={`inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer select-none active:scale-95 shadow-sm ${
+            isActive
+              ? "bg-[var(--color-accent)] text-white ring-2 ring-[var(--color-accent)]/50 animate-iris-pulse"
+              : "bg-[#181c2b] border border-[var(--color-accent)]/40 text-[var(--color-accent-hover)] hover:bg-[var(--color-accent)] hover:text-white"
+          }`}
+          title={`Click to jump playback to ${timeStr}`}
+        >
+          <Play className="w-2.5 h-2.5 fill-current" />
+          <span>{rawTimestamp}</span>
+        </button>
+      );
+
+      lastIndex = timestampRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts;
+  };
+
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border-deck)] rounded-2xl p-6 shadow-xl space-y-4">
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border-subtle)] pb-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-[var(--color-accent-faint)] text-[var(--color-accent-hover)] border border-[var(--color-accent)]/20">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[var(--color-ink)] flex items-center gap-2">
+              Grounded Intelligence Synthesis
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#0d0f15] text-[var(--color-secondary)] border border-[var(--color-border-deck)]">
+                {isFallbackGroq ? "extractive fallback" : "llama-3.3-70b"}
+              </span>
+            </h3>
+            <p className="text-xs text-[var(--color-ink-muted)]">
+              Sub-second reasoning with magnetic timestamp citations
+            </p>
+          </div>
+        </div>
+
+        {/* Latency badge breakdown */}
+        <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ink-faint)] bg-[#0d0f15] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
+          <Clock className="w-3.5 h-3.5 text-[var(--color-secondary)]" />
+          <span>Embed: {latencyMs.embedding}ms</span>
+          <span>•</span>
+          <span>Search: {latencyMs.search}ms</span>
+          <span>•</span>
+          <span>{isFallbackGroq ? "Synth" : "Groq"}: {latencyMs.synthesis}ms</span>
+        </div>
+      </div>
+
+      {/* Groq Missing notice if in fallback */}
+      {isFallbackGroq && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--color-accent-faint)] border border-[var(--color-accent)]/30 text-xs text-[var(--color-ink)]">
+          <AlertCircle className="w-4 h-4 text-[var(--color-accent-hover)] shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-semibold text-[var(--color-accent-hover)]">
+              No LLM answer: showing the closest transcript passages instead.
+            </span>
+            <p className="text-[var(--color-ink-muted)] text-[11px]">
+              Either no Groq API key is set or the Groq call failed. For written answers, add your free key to{" "}
+              <code className="text-[var(--color-ink)] font-mono bg-black/40 px-1 py-0.5 rounded">.env.local</code> as{" "}
+              <code className="text-[var(--color-ink)] font-mono bg-black/40 px-1 py-0.5 rounded">GROQ_API_KEY=gsk_...</code>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Main synthesized answer text with generous 16px body */}
+      <div className="text-[15px] md:text-base leading-relaxed text-[#e2e8f0] font-sans space-y-3">
+        <div className="whitespace-pre-line">
+          {renderSynthesizedText(answer)}
+        </div>
+      </div>
+
+      {/* Citation Sources Footnotes */}
+      {citations.length > 0 && (
+        <div className="border-t border-[var(--color-border-subtle)] pt-4 space-y-2.5">
+          <h4 className="text-xs font-mono font-semibold uppercase text-[var(--color-ink-muted)] tracking-wider flex items-center gap-1.5">
+            <Quote className="w-3.5 h-3.5 text-[var(--color-secondary)]" />
+            Direct Audio Evidence ({citations.length})
+          </h4>
+          <div className="grid grid-cols-1 gap-2.5">
+            {citations.map((c, idx) => (
+              <button
+                key={idx}
+                onClick={() => onSeek(c.seconds)}
+                className="group flex flex-col text-left p-3 rounded-xl bg-[#0f121a] border border-[var(--color-border-deck)] border-l-2 border-l-[var(--color-accent)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-surface-hover)] transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center justify-between text-xs font-mono mb-1">
+                  <span className="font-bold text-[var(--color-accent-hover)] flex items-center gap-1">
+                    <Play className="w-2.5 h-2.5 fill-current" />
+                    [{c.timestamp}]
+                  </span>
+                  <span className="text-[11px] text-[var(--color-ink-muted)]">
+                    Speaker: {c.speaker}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--color-ink-muted)] group-hover:text-[var(--color-ink)] line-clamp-2 transition-colors italic">
+                  &ldquo;{c.snippet}&rdquo;
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

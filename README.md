@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scrubcast
 
-## Getting Started
+Ask a question about a podcast episode and get an answer with clickable timestamps. Click a timestamp and the YouTube player jumps to the moment the speaker said it.
 
-First, run the development server:
+It's a small RAG (retrieval-augmented generation) app over podcast transcripts. You don't scrub through three hours of audio looking for the part about tokenizers. You ask "why does Karpathy blame tokenizers for spelling bugs?" and land on that answer.
+
+## What it does today, and what it doesn't
+
+**Any YouTube video with captions.** Paste a link and Scrubcast fetches the video's captions with their timestamps, groups them into 30 to 45 second passages, embeds each passage, and saves the result to `data/library/<id>.json`. The video then shows up in the episode picker and you can ask it questions. A 3.5-hour episode (Lex Fridman #333) took 18 seconds and produced 376 passages. Pasting the same link again reuses the saved index.
+
+Captions don't say who is talking, so ingested passages are labeled "Speaker". Auto-generated captions work but have no punctuation, so passage breaks fall on time limits instead of sentence ends.
+
+**Two built-in demo episodes** also ship with the repo (Karpathy on Lex Fridman, Hassabis on Dwarkesh). Their transcripts in [`src/data/raw-episodes.ts`](./src/data/raw-episodes.ts) are short hand-written paraphrases with approximate timestamps, not real captions. To search the real transcript of either one, paste its YouTube link.
+
+It does **not** yet:
+
+- work on videos without captions (that needs audio transcription)
+- take a podcast RSS feed or audio file
+- search across several episodes at once
+
+## How a question gets answered
+
+1. **Index (once per video).** `POST /api/ingest` takes a YouTube link, fetches the captions through YouTube's InnerTube player endpoint (no API key), chunks them, and embeds every chunk with `Xenova/bge-small-en-v1.5`. The model runs locally in Node, so embeddings cost nothing. Each video's 384-number vectors go into `data/library/`. The built-in demo episodes are indexed the same way by `npm run index` into `src/data/indexed-episodes.json`.
+2. **Retrieve.** `POST /api/search` embeds your question with the same model and ranks the episode's chunks by cosine similarity. The top 5 come back.
+3. **Generate.** Those 5 chunks, each labeled with its `[MM:SS]` start time, go to Groq's `llama-3.3-70b-versatile`. The prompt tells it to answer only from the excerpts and cite the timestamps.
+4. **Seek.** The UI turns every `[MM:SS]` in the answer into a button. Clicking it calls the YouTube IFrame API's `seekTo(seconds, true)`. Matching chunks also show up as pins on the player's timeline, and the transcript panel follows playback.
+
+Without a `GROQ_API_KEY`, or if the Groq call fails, step 3 falls back to quoting the two best-matching passages verbatim. Search and seeking still work.
+
+## Quickstart
+
+```bash
+npm install
+```
+
+Optional. For written answers, get a free key at [console.groq.com](https://console.groq.com) and put it in `.env.local`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+```env
+GROQ_API_KEY=gsk_your_key_here
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The first search downloads the embedding model (about 30 MB) into the Hugging Face cache, so it takes a few seconds. Later searches embed in tens of milliseconds.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Adding an episode
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Paste a YouTube link into the app. Or call the API directly:
 
-## Learn More
+```bash
+curl -X POST localhost:3000/api/ingest -H "Content-Type: application/json" -d '{"url":"https://youtu.be/cdiD-9MMpb0"}'
+```
 
-To learn more about Next.js, take a look at the following resources:
+### By hand (for demo transcripts)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Add an entry to `RAW_EPISODES` in [`src/data/raw-episodes.ts`](./src/data/raw-episodes.ts) with the YouTube video ID, optional `suggestedQueries`, and a list of chunks. Each chunk has `startTime`, `endTime` (seconds), `speaker` and `text`.
+2. Rebuild the index:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run index
+```
 
-## Deploy on Vercel
+The episode then appears in the header's episode picker.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+scrubcast/
+├── data/library/                 # Ingested YouTube episodes (git-ignored, created at runtime)
+├── scripts/build-index.ts        # Embeds raw transcripts into indexed-episodes.json
+├── src/
+│   ├── app/
+│   │   ├── api/ingest/route.ts   # YouTube link in, searchable episode out
+│   │   ├── api/search/route.ts   # Retrieve top chunks, then synthesize an answer
+│   │   ├── layout.tsx
+│   │   └── page.tsx              # Server page; strips embeddings before sending episodes to the browser
+│   ├── components/
+│   │   ├── Workbench.tsx         # Client state: current episode, query, results, playback time
+│   │   ├── StudioHeader.tsx      # Brand and episode picker
+│   │   ├── SearchBar.tsx         # Question input and suggested questions
+│   │   ├── SynthesizedAnswer.tsx # Answer with clickable [MM:SS] chips
+│   │   ├── SemanticMatches.tsx   # Top retrieved chunks with similarity scores
+│   │   ├── PlayerDeck.tsx        # YouTube player, timeline pins, transport controls
+│   │   └── TranscriptFeed.tsx    # Full transcript that follows playback
+│   ├── data/
+│   │   ├── raw-episodes.ts       # Source transcripts
+│   │   └── indexed-episodes.json # Generated: transcripts plus embeddings
+│   ├── lib/
+│   │   ├── embeddings.ts         # bge-small pipeline and cosine similarity
+│   │   ├── episodes.ts           # Episode lookup and the data/library store (server only)
+│   │   ├── youtube.ts            # Parse YouTube links, fetch metadata and timed captions
+│   │   ├── ingest.ts             # Captions to chunks to embeddings to saved episode
+│   │   ├── search.ts             # Vector search over one episode
+│   │   ├── groq.ts               # Prompt, Groq call, citation parsing, fallback
+│   │   └── time.ts               # [MM:SS] formatting and parsing
+│   └── types/podcast.ts
+├── DESIGN.md                     # Visual design contract (elan skill)
+└── CLAUDE.md
+```
+
+## Stack
+
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, `@xenova/transformers` for local embeddings, `groq-sdk` for generation, `react-youtube` for the player.
+
+## Roadmap
+
+YouTube links with captions work now. What's left for "paste any YouTube link or podcast, then ask it anything":
+
+1. **Podcast ingestion.** Accept an RSS feed or audio URL, transcribe with Whisper (Groq hosts `whisper-large-v3-turbo` on the same API key), then chunk and embed the same way. Play audio with an `<audio>` element instead of YouTube.
+2. **Storage.** One JSON file per video is fine for dozens of videos. Past that, move to SQLite with a vector extension.
+3. **Videos without captions.** Fall back to downloading the audio and running it through the Whisper path.
