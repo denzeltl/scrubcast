@@ -1,57 +1,41 @@
 # Scrubcast
 
-Ask a question about a podcast episode and get an answer with clickable timestamps. Click a timestamp and the YouTube player jumps to the moment the speaker said it.
+Ask a YouTube video a question. Get an answer with timestamps. Click a timestamp and the video jumps to that moment.
 
-It's a small RAG (retrieval-augmented generation) app over podcast transcripts. You don't scrub through three hours of audio looking for the part about tokenizers. You ask "why does Karpathy blame tokenizers for spelling bugs?" and land on that answer.
+No more scrubbing through a 20-minute video to find one part. Just ask "Will the Roadster ever be street-legal?" and go straight to the answer.
 
-## What it does today, and what it doesn't
+## Screenshots
 
-**Any YouTube video with captions, up to 60 minutes.** Paste a link and Scrubcast fetches the video's captions with their timestamps, groups them into 30 to 45 second passages, embeds each passage, and starts a whole-video summary. Pasted videos are private to the visitor who pasted them: they're held in server memory (the 20 most recent), never shown to other visitors and never written to disk. If the server forgets one (restart, or newer videos pushed it out), the next question re-indexes it automatically.
+| Desktop | Mobile |
+|---|---|
+| <img src="docs/screenshots/desktop.png" alt="Scrubcast on desktop: an answer with timestamp chips beside the YouTube player" width="640"> | <img src="docs/screenshots/mobile.jpg" alt="Scrubcast on a phone: video picker, question box and player in one column" width="240"> |
 
-Captions don't say who is talking, so ingested passages are labeled "Speaker". Auto-generated captions work but have no punctuation, so passage breaks fall on time limits instead of sentence ends.
+## What it can do
 
-**Seven featured videos** ship with the repo, indexed and summarized from their real captions (see [Featured videos](#featured-videos)). Anything else, paste a link.
+- Answer questions about any YouTube video that has captions and is up to 60 minutes long.
+- Come with 7 ready-to-try videos (MKBHD, TED talks, Steve Jobs, 3Blue1Brown and more).
+- Keep videos you paste private. Only you see them, and they're never saved to disk.
 
-**On the hosted demo, pasting a link usually fails.** YouTube blocks most cloud servers from fetching captions, so for now the public site sticks to the featured videos and shows how to run Scrubcast yourself. Support for pasting links on the hosted site is coming soon. On your own computer, any captioned video works. See [Quickstart](#quickstart).
+What it can't do yet:
 
-It does **not** yet:
+- Videos without captions
+- Podcast feeds or audio files
+- Searching several videos at once
 
-- work on videos without captions (that needs audio transcription)
-- take a podcast RSS feed or audio file
-- search across several episodes at once
+> **Note:** On the hosted site, pasting your own link usually fails because YouTube blocks most cloud servers. Run it on your own computer to use any video.
 
-## How a question gets answered
+## How it works
 
-1. **Index (once per video).** `POST /api/ingest` takes a YouTube link, fetches the captions through YouTube's InnerTube player endpoint (no API key), chunks them, and embeds every chunk with `Xenova/bge-small-en-v1.5`. The model runs locally in Node, so embeddings cost nothing. Each video's 384-number vectors are kept in server memory. The featured videos are frozen into `src/data/` by `npm run index`.
-2. **Retrieve.** `POST /api/search` embeds your question with the same model and ranks the episode's chunks by cosine similarity. The top 5 come back.
-3. **Generate.** Those 5 chunks, each labeled with its `[MM:SS]` start time, go to Groq's `openai/gpt-oss-120b` (set `GROQ_MODEL` to use another). The prompt tells it to answer only from the excerpts and cite the timestamps.
-4. **Seek.** The UI turns every `[MM:SS]` in the answer into a button. Clicking it calls the YouTube IFrame API's `seekTo(seconds, true)`. Matching chunks also show up as pins on the player's timeline, and the transcript panel follows playback.
+1. **Read the video.** Scrubcast grabs the captions and cuts them into short pieces (30–45 seconds each).
+2. **Find the right parts.** When you ask a question, it finds the 5 pieces that best match it.
+3. **Write the answer.** An AI model (on [Groq](https://console.groq.com)) writes an answer using only those pieces, with timestamps like `[12:34]`.
+4. **Jump.** Each timestamp is a button. Click it and the video plays from there.
 
-### Backup key
+In the background, Scrubcast also writes a summary of the whole video (overview, key points, chapters). This helps with big-picture questions like "What's the main point?" It takes about a minute for a 20-minute video.
 
-Set `GROQ_API_KEY_BACKUP` in `.env.local` and every Groq call (answers and summaries) fails over to it when the primary key is rejected (401/403: revoked, expired, mistyped) or rate-limited (429). A rejected key is skipped until the server restarts. A rate-limited key is retried after Groq's `retry-after`. If both keys are rate-limited, answers wait up to 10 seconds and summaries up to 2 minutes for one to free up.
+## Run it on your computer
 
-Groq counts rate limits per organization, not per key. A second key from the same account protects you from a bad key but adds no capacity. For more capacity, the backup has to be on a different plan, such as a paid developer tier. Opening extra free accounts to stack free limits is the kind of thing provider terms usually forbid, so check Groq's terms before you do it.
-
-Without a `GROQ_API_KEY`, or if the Groq call fails, step 3 falls back to quoting the two best-matching passages verbatim. Search and seeking still work.
-
-## Whole-video questions
-
-Retrieval only shows the answer model 5 passages, which is fine for "why did Tesla drop radar?" but useless for "what's the main argument?". So after a video is indexed, a background job reads the whole transcript and writes:
-
-- an overview and the main argument
-- 5 to 8 key points with timestamps
-- chapters with titles, one-line summaries and start times
-
-It's saved to `data/summaries/<id>.json` (git-ignored). Every answer then gets the overview, main argument, key points and chapter titles alongside the retrieved passages, and can cite chapter and key-point timestamps too.
-
-**It's slow on Groq's free tier.** Each model is capped at 8,000 tokens per minute, and a single request can't exceed that. So the job summarizes the transcript about 3,500 tokens at a time and paces itself under the cap. A 20-minute video takes about a minute. The 3.5-hour Lex Fridman episode takes about 15 minutes. Questions work the whole time; they just don't use the summary until it's done. The job runs on `openai/gpt-oss-20b` so it has its own token budget and doesn't slow down live questions on `gpt-oss-120b`.
-
-Summaries are built one at a time. If the server restarts mid-job, the job is lost and starts again the next time someone opens that video.
-
-## Quickstart
-
-Run it on your own computer to search any YouTube video. You need [Node.js](https://nodejs.org) 22 or newer and Git.
+You need [Node.js](https://nodejs.org) 22 or newer.
 
 ```bash
 git clone https://github.com/denzeltl/scrubcast.git
@@ -65,171 +49,63 @@ cd scrubcast
 npm install
 ```
 
-Optional. For written answers, get a free key at [console.groq.com](https://console.groq.com) and put it in `.env.local`:
+For written answers, get a free key at [console.groq.com](https://console.groq.com), then copy the example settings file:
 
 ```bash
 cp .env.local.example .env.local
 ```
 
+Put your key in `.env.local`:
+
 ```env
 GROQ_API_KEY=gsk_your_key_here
 ```
+
+Start the app:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The first search downloads the embedding model (about 30 MB) into the Hugging Face cache, so it takes a few seconds. Later searches embed in tens of milliseconds.
+Open [http://localhost:3000](http://localhost:3000). The first question takes a few seconds while it downloads a small model (about 30 MB).
 
-## Adding an episode
+No key? It still works. You'll see the best-matching quotes from the video instead of a written answer.
 
-Paste a YouTube link into the app. Or call the API directly:
+## Settings
 
-```bash
-curl -X POST localhost:3000/api/ingest -H "Content-Type: application/json" -d '{"url":"https://youtu.be/cdiD-9MMpb0"}'
-```
+All optional except the key.
 
-### Featured videos
+| Setting | What it does |
+|---|---|
+| `GROQ_API_KEY` | Writes answers and summaries. |
+| `GROQ_API_KEY_BACKUP` | A second key, used if the first one stops working or hits its limit. |
+| `SITE_URL` | Your public web address, for link previews. |
 
-Seven videos ship with the repo so a fresh deploy has something to try right away, with transcripts, embeddings and summaries already built:
+Each visitor can add 5 videos per hour and ask 30 questions per 10 minutes. You can change these and other limits with environment variables (see `src/lib/rateLimit.ts` and `src/lib/ingest.ts`).
 
-- Marques Brownlee, "The NEW Tesla Roadster: My Honest Reaction" (23 min)
-- Tim Urban, TED, "Inside the Mind of a Master Procrastinator" (14 min)
-- Kurzgesagt, "How We Make Money on YouTube with 20M Subs" (10 min)
-- Steve Jobs, "2005 Stanford Commencement Address" (15 min)
-- Simon Sinek, TED, "How Great Leaders Inspire Action" (19 min)
-- 3Blue1Brown, "But what is a neural network?" (19 min)
-- Brené Brown, TED, "The Power of Vulnerability" (21 min)
+## Putting it online
 
-To change them, run the app locally with `SCRUBCAST_SAVE_LIBRARY=1` (so pasted videos are also written to `data/library/` and `data/summaries/`), paste the new links, and wait for each "About this video" card to fill in. Then edit `FEATURED` (ids and suggested questions) in [`scripts/build-index.ts`](./scripts/build-index.ts) and run:
+Use the included `Dockerfile` on any host that runs a normal, always-on server (Railway, Render, Fly.io, a VPS). Give it about 1 GB of memory and set `GROQ_API_KEY`.
 
-```bash
-npm run index
-```
+Don't use Vercel or Netlify. Scrubcast keeps videos in memory and runs summaries in the background, and those hosts shut things down after each request.
 
-That copies them from `data/library/` and `data/summaries/` into `src/data/indexed-episodes.json` and `src/data/built-in-summaries.json`.
+After deploying, paste a YouTube link to check it works. If it fails but works on your computer, YouTube is blocking your host. The 7 built-in videos keep working either way.
 
-## Public use and limits
+## Changing the built-in videos
 
-The defaults are set for a small public site. Each can be changed with an env var:
+1. Run the app with `SCRUBCAST_SAVE_LIBRARY=1` so pasted videos get saved.
+2. Paste the new links and wait for each "About this video" card to fill in.
+3. Edit the `FEATURED` list in [`scripts/build-index.ts`](./scripts/build-index.ts).
+4. Run `npm run index`.
 
-| Limit | Default | Env var |
-|---|---|---|
-| New videos per visitor | 5 per hour | `RATE_LIMIT_INGEST_PER_HOUR` |
-| Questions per visitor | 30 per 10 minutes | `RATE_LIMIT_SEARCH_PER_10_MIN` |
-| Longest video | 60 minutes | `MAX_VIDEO_MINUTES` |
-| Videos indexing at once (all visitors) | 2 | `MAX_CONCURRENT_INGESTS` |
-| Summaries waiting in line | 3 | `MAX_QUEUED_SUMMARIES` |
-| Pasted videos kept in memory | 20 | `MAX_CACHED_VIDEOS` |
-
-Visitors are told the limit and when to try again. Limits are counted per IP, in memory, per server instance.
-
-## Deploying
-
-Scrubcast needs a **long-running Node server**, not serverless functions (Vercel, Netlify): summaries run as background jobs after the request returns, and pasted videos live in server memory. Either of those breaks when each request is a separate short-lived function.
-
-The repo has a `Dockerfile` that builds the app and pre-downloads the embedding model. It runs anywhere that takes a Docker image: Railway, Render, Fly.io, or a VPS. Give it about 1 GB of RAM; the embedding model and onnxruntime use a few hundred MB. Set `GROQ_API_KEY` (and optionally `GROQ_API_KEY_BACKUP`) in the host's environment settings. Run one instance, since rate limits and pasted videos are per instance.
-
-**Check caption fetching on your host before launch.** YouTube sometimes blocks requests from datacenter IP ranges. After deploying, paste a link. If you get "YouTube won't serve this video" for videos that work locally, the host's IPs are blocked. The featured videos keep working either way, since they're bundled. The fixes are a different host or region, or routing YouTube requests through a residential proxy (a paid service).
-
-### Hugging Face Spaces (free)
-
-1. Create a Space at [huggingface.co/new-space](https://huggingface.co/new-space) and choose **Docker** as the SDK.
-2. Push this repo to the Space (or connect it to your GitHub repo). The Space's `README.md` needs this header at the very top so Hugging Face knows the port:
-
-   ```yaml
-   ---
-   title: Scrubcast
-   emoji: 🎙️
-   colorFrom: yellow
-   colorTo: red
-   sdk: docker
-   app_port: 3000
-   ---
-   ```
-
-3. In the Space's **Settings → Variables and secrets**, add `GROQ_API_KEY` as a secret, and `SITE_URL` (your Space's `https://<user>-<space>.hf.space` address) as a variable.
-4. Open the Space, paste a YouTube link, and check that it indexes. That's also the caption-blocking check below.
-
-Free Spaces sleep when nobody visits for a while; the first visit after that takes about a minute to wake.
-
-### Settings for production
-
-| Variable | Required | What it does |
-|---|---|---|
-| `GROQ_API_KEY` | yes | Writes the answers and summaries. Without it, answers fall back to quoted passages. |
-| `SITE_URL` | recommended | The public address, used for share previews, the canonical link and the sitemap. |
-| `GROQ_API_KEY_BACKUP` | no | Used when the primary key is rejected or rate-limited. |
-| `TRUSTED_PROXY_HOPS` | no | Proxies in front of the app (default 1). Rate limits count visitors from the address the last proxy saw. |
-
-The limits in the table above, the models (`GROQ_MODEL`, `GROQ_SUMMARY_MODEL`) and `GROQ_SUMMARY_TPM` are optional too.
-
-`GET /api/health` returns `{"ok": true, …}` and says whether a Groq key is set. The Dockerfile's `HEALTHCHECK` uses it, and so can your host's uptime monitor.
-
-### Before you publish
-
-- `.env.local` is git-ignored; never commit a key. If one ever lands in a commit, revoke it at [console.groq.com](https://console.groq.com) and make a new one.
-- Run the checks: `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`. GitHub Actions runs the same on every push (`.github/workflows/ci.yml`).
-
-## Brand
-
-The look is "Broadcast × halftone": a near-black deck, amber for timecodes and actions, and a halftone sound wave cut by a red playhead as the logo. The same wave is the scrub bar under the video. Tokens and rules are in [`DESIGN.md`](./DESIGN.md), and the logo files and usage page are in [`brand/`](./brand/index.html). The mark is generated by `src/lib/brandMark.ts`. Regenerate the files with:
+## Checks
 
 ```bash
-npx tsx scripts/build-brand.ts
+npm run lint && npx tsc --noEmit && npm test && npm run build
 ```
 
-## Project layout
+GitHub Actions runs these on every push.
 
-```
-scrubcast/
-├── data/                         # Only with SCRUBCAST_SAVE_LIBRARY=1, for curating featured videos (git-ignored)
-├── brand/                        # Logo, mark, favicon SVGs and the brand usage page
-├── Dockerfile                    # Production image: build + pre-downloaded embedding model
-├── scripts/build-index.ts        # Freezes the featured videos into src/data/
-├── scripts/warm-model.mjs        # Downloads the embedding model (used by the Dockerfile)
-├── src/
-│   ├── app/
-│   │   ├── api/ingest/route.ts   # YouTube link in, searchable episode out
-│   │   ├── api/summary/route.ts  # Summary status, and start a summary job
-│   │   ├── api/search/route.ts   # Retrieve top chunks, then synthesize an answer
-│   │   ├── layout.tsx
-│   │   └── page.tsx              # Server page; strips embeddings before sending episodes to the browser
-│   ├── components/
-│   │   ├── Workbench.tsx         # Client state: current episode, query, results, playback time
-│   │   ├── StudioHeader.tsx      # Brand and episode picker
-│   │   ├── SearchBar.tsx         # Question input and suggested questions
-│   │   ├── SynthesizedAnswer.tsx # Answer with clickable [MM:SS] chips
-│   │   ├── SemanticMatches.tsx   # Top retrieved chunks with similarity scores
-│   │   ├── PlayerDeck.tsx        # YouTube player, timeline pins, transport controls
-│   │   └── TranscriptFeed.tsx    # Full transcript that follows playback
-│   ├── data/
-│   │   ├── indexed-episodes.json # Featured videos: passages plus embeddings
-│   │   └── built-in-summaries.json # Featured videos: whole-video summaries
-│   ├── lib/
-│   │   ├── embeddings.ts         # bge-small pipeline and cosine similarity
-│   │   ├── episodes.ts           # Featured list + in-memory cache of pasted videos (server only)
-│   │   ├── youtube.ts            # Parse YouTube links, fetch metadata and timed captions
-│   │   ├── ingest.ts             # Captions to chunks to embeddings to saved episode
-│   │   ├── summary.ts            # Background whole-video summary: chapters, overview, key points
-│   │   ├── search.ts             # Vector search over one episode
-│   │   ├── groq.ts               # Prompt, Groq call, citation parsing, fallback
-│   │   ├── groqKeys.ts           # Primary/backup key failover for every Groq call
-│   │   ├── rateLimit.ts          # Per-visitor limits for indexing and questions
-│   │   └── time.ts               # [MM:SS] formatting and parsing
-│   └── types/podcast.ts
-├── DESIGN.md                     # Visual design contract (elan skill)
-└── CLAUDE.md
-```
+## Built with
 
-## Stack
-
-Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, `@huggingface/transformers` for local embeddings, `groq-sdk` for generation, `react-youtube` for the player.
-
-## Roadmap
-
-YouTube links with captions work now. What's left for "paste any YouTube link or podcast, then ask it anything":
-
-1. **Podcast ingestion.** Accept an RSS feed or audio URL, transcribe with Whisper (Groq hosts `whisper-large-v3-turbo` on the same API key), then chunk and embed the same way. Play audio with an `<audio>` element instead of YouTube.
-2. **Storage.** One JSON file per video is fine for dozens of videos. Past that, move to SQLite with a vector extension.
-3. **Videos without captions.** Fall back to downloading the audio and running it through the Whisper path.
+Next.js 16, React 19, TypeScript, Tailwind CSS v4, Groq, and a small local embedding model (`bge-small-en-v1.5`) for matching questions to passages. The design rules live in [`DESIGN.md`](./DESIGN.md).
