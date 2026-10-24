@@ -10,7 +10,9 @@ It's a small RAG (retrieval-augmented generation) app over podcast transcripts. 
 
 Captions don't say who is talking, so ingested passages are labeled "Speaker". Auto-generated captions work but have no punctuation, so passage breaks fall on time limits instead of sentence ends.
 
-**Three featured videos** ship with the repo, indexed and summarized from their real captions (see [Featured videos](#featured-videos)). Anything else, paste a link.
+**Seven featured videos** ship with the repo, indexed and summarized from their real captions (see [Featured videos](#featured-videos)). Anything else, paste a link.
+
+**On the hosted demo, pasting a link usually fails.** YouTube blocks most cloud servers from fetching captions, so for now the public site sticks to the featured videos and shows how to run Scrubcast yourself. Support for pasting links on the hosted site is coming soon. On your own computer, any captioned video works. See [Quickstart](#quickstart).
 
 It does **not** yet:
 
@@ -49,6 +51,16 @@ Summaries are built one at a time. If the server restarts mid-job, the job is lo
 
 ## Quickstart
 
+Run it on your own computer to search any YouTube video. You need [Node.js](https://nodejs.org) 22 or newer and Git.
+
+```bash
+git clone https://github.com/denzeltl/scrubcast.git
+```
+
+```bash
+cd scrubcast
+```
+
 ```bash
 npm install
 ```
@@ -79,11 +91,15 @@ curl -X POST localhost:3000/api/ingest -H "Content-Type: application/json" -d '{
 
 ### Featured videos
 
-Three videos ship with the repo so a fresh deploy has something to try right away, with transcripts, embeddings and summaries already built:
+Seven videos ship with the repo so a fresh deploy has something to try right away, with transcripts, embeddings and summaries already built:
 
 - Marques Brownlee, "The NEW Tesla Roadster: My Honest Reaction" (23 min)
 - Tim Urban, TED, "Inside the Mind of a Master Procrastinator" (14 min)
 - Kurzgesagt, "How We Make Money on YouTube with 20M Subs" (10 min)
+- Steve Jobs, "2005 Stanford Commencement Address" (15 min)
+- Simon Sinek, TED, "How Great Leaders Inspire Action" (19 min)
+- 3Blue1Brown, "But what is a neural network?" (19 min)
+- Brené Brown, TED, "The Power of Vulnerability" (21 min)
 
 To change them, run the app locally with `SCRUBCAST_SAVE_LIBRARY=1` (so pasted videos are also written to `data/library/` and `data/summaries/`), paste the new links, and wait for each "About this video" card to fill in. Then edit `FEATURED` (ids and suggested questions) in [`scripts/build-index.ts`](./scripts/build-index.ts) and run:
 

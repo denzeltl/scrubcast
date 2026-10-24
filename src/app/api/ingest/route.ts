@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     if (error instanceof IngestError) {
-      return NextResponse.json({ error: error.message }, { status: 422 });
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 422 });
     }
     // Details stay in the server log; visitors get a message they can act on
     console.error("Ingest route error:", error);

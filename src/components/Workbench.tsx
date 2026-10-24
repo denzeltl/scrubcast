@@ -20,6 +20,13 @@ interface WorkbenchProps {
   llmModel: string;
 }
 
+// Carries the API's error code so the source row can tell a YouTube block from a bad link
+class IngestFailure extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+  }
+}
+
 async function fetchIngest(url: string): Promise<PodcastEpisode> {
   const res = await fetch("/api/ingest", {
     method: "POST",
@@ -28,7 +35,7 @@ async function fetchIngest(url: string): Promise<PodcastEpisode> {
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(data?.error || `Couldn't add that video (${res.status})`);
+    throw new IngestFailure(data?.error || `Couldn't add that video (${res.status})`, data?.code);
   }
   return data.episode as PodcastEpisode;
 }
@@ -107,6 +114,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>(initialEpisodes);
   const [isIngesting, setIsIngesting] = useState<boolean>(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
+  const [youtubeBlocked, setYoutubeBlocked] = useState(false);
   const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode>(episodes[0]);
   const [query, setQuery] = useState<string>(() => defaultQueryFor(episodes[0]));
   // Starts true because the first search fires on mount
@@ -205,6 +213,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   const handleIngest = async (url: string): Promise<boolean> => {
     setIsIngesting(true);
     setIngestError(null);
+    setYoutubeBlocked(false);
     try {
       const ep = await fetchIngest(url);
       setEpisodes((list) => (list.some((e) => e.id === ep.id) ? list : [...list, ep]));
@@ -213,6 +222,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
       return true;
     } catch (err) {
       setIngestError(err instanceof Error ? err.message : "Couldn't add that video");
+      setYoutubeBlocked(err instanceof IngestFailure && err.code === "youtube_blocked");
       return false;
     } finally {
       setIsIngesting(false);
@@ -236,6 +246,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
           onIngest={handleIngest}
           isIngesting={isIngesting}
           error={ingestError}
+          youtubeBlocked={youtubeBlocked}
         />
 
         {/* Command Search Bar */}

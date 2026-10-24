@@ -39,6 +39,42 @@ const FEATURED: { id: string; suggestedQueries: string[] }[] = [
       "What's the Life Calendar at the end of the talk?",
     ],
   },
+  {
+    id: "yt-UF8uR6Z6KLc", // Steve Jobs: 2005 Stanford Commencement Address (15 min)
+    suggestedQueries: [
+      "What are the three stories Jobs tells?",
+      "Why did he drop out of college?",
+      "How did getting fired from Apple turn out to be good?",
+      "What does \"stay hungry, stay foolish\" mean here?",
+    ],
+  },
+  {
+    id: "yt-qp0HIF3SfI4", // Simon Sinek, TED: How great leaders inspire action (19 min)
+    suggestedQueries: [
+      "What is the Golden Circle?",
+      "Why does Apple sell more than its competitors?",
+      "What happened to TiVo?",
+      "What does the brain have to do with \"start with why\"?",
+    ],
+  },
+  {
+    id: "yt-aircAruvnKk", // 3Blue1Brown: But what is a neural network? (19 min)
+    suggestedQueries: [
+      "What does a single neuron hold?",
+      "Why are there hidden layers?",
+      "What are weights and biases for?",
+      "Why use ReLU instead of sigmoid?",
+    ],
+  },
+  {
+    id: "yt-iCvmsMzlF7o", // Brené Brown, TED: The power of vulnerability (21 min)
+    suggestedQueries: [
+      "What do wholehearted people have in common?",
+      "How does she define shame?",
+      "Why can't we selectively numb emotions?",
+      "What did her breakdown teach her?",
+    ],
+  },
 ];
 
 const root = path.resolve(__dirname, "..");

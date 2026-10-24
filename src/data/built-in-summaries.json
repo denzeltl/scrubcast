@@ -151,5 +151,294 @@
     ],
     "model": "openai/gpt-oss-20b",
     "createdAt": "2026-10-23T08:00:35.976Z"
+  },
+  "yt-UF8uR6Z6KLc": {
+    "overview": "Steve Jobs delivers a commencement address at Stanford, sharing three personal stories—his early life, career setbacks, and health crisis—while reflecting on how these experiences shaped his values and work. He opens with a brief self‑introduction, then weaves each narrative into a broader message about following intuition, embracing failure, and living authentically. The speech concludes with a call to action for graduates to pursue their passions and remain curious.",
+    "mainArgument": "Jobs’ central thesis is that life’s unpredictable events, when viewed through the lens of curiosity and resilience, can lead to profound personal and professional growth. He repeatedly emphasizes the importance of connecting seemingly unrelated experiences, learning from setbacks, and confronting mortality to live purposefully.",
+    "keyPoints": [
+      {
+        "seconds": 7,
+        "text": "Jobs introduces himself, admits he never graduated, and outlines the three stories he will share."
+      },
+      {
+        "seconds": 82,
+        "text": "He explains how dropping out of Reed College and taking a calligraphy class later influenced the Macintosh’s typography."
+      },
+      {
+        "seconds": 252,
+        "text": "He claims the calligraphy class directly impacted the Macintosh’s design."
+      },
+      {
+        "seconds": 322,
+        "text": "Jobs describes being fired from Apple, founding NeXT and Pixar, and how these setbacks led to his return to Apple."
+      },
+      {
+        "seconds": 359,
+        "text": "He states he was fired from Apple at age 30 after a falling out with co‑founder Steve Wozniak."
+      },
+      {
+        "seconds": 492,
+        "text": "He reflects on mortality, a cancer diagnosis, and how awareness of death shapes priorities."
+      },
+      {
+        "seconds": 600,
+        "text": "He notes his diagnosis of an incurable pancreatic cancer that was later found to be a rare, curable form."
+      },
+      {
+        "seconds": 838,
+        "text": "He recalls The Whole Earth Catalog’s final issue ending with “Stay Hungry. Stay Foolish.”"
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 7,
+        "title": "Opening & Personal Background",
+        "summary": "Jobs introduces himself, notes he never graduated, and outlines the three stories he will share."
+      },
+      {
+        "startTime": 82,
+        "title": "Connecting the Dots",
+        "summary": "He recounts dropping out of Reed College, the calligraphy class, and how those experiences later influenced the Macintosh."
+      },
+      {
+        "startTime": 322,
+        "title": "Love, Loss, and Reinvention",
+        "summary": "Jobs describes being fired from Apple, founding NeXT and Pixar, and how these setbacks led to his return to Apple and personal growth."
+      },
+      {
+        "startTime": 492,
+        "title": "Death and Purpose",
+        "summary": "He reflects on mortality, a cancer diagnosis, and how awareness of death shapes priorities and encourages living authentically."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-24T18:10:05.949Z"
+  },
+  "yt-qp0HIF3SfI4": {
+    "overview": "Simon Sinek delivers a TED talk on why great leaders inspire action, using the Golden Circle model to explain how starting with a clear \"why\" drives innovation and influence. He illustrates his points with examples from Apple, TiVo, and Martin Luther King Jr., weaving neuroscience and marketing insights into a cohesive narrative. The talk progresses from questioning innovation to defining the Golden Circle, linking it to brain function, and concluding with practical implications for leadership.",
+    "mainArgument": "Sinek argues that successful leaders and organizations communicate from the inside out—beginning with purpose (Why), then process (How), and finally product (What). This inward focus aligns with the limbic brain’s decision-making, making emotional resonance the key driver of consumer and follower behavior.",
+    "keyPoints": [
+      {
+        "seconds": 16,
+        "text": "Apple’s innovation stems from doing something different despite equal resources."
+      },
+      {
+        "seconds": 115,
+        "text": "The Golden Circle model (Why‑How‑What) explains how great leaders inspire."
+      },
+      {
+        "seconds": 248,
+        "text": "People buy why you do something, not what you do; communication order matters."
+      },
+      {
+        "seconds": 377,
+        "text": "The limbic part of the brain, linked to the Golden Circle, drives behavior."
+      },
+      {
+        "seconds": 840,
+        "text": "TiVo’s commercial failure illustrates that purpose, not product, drives success."
+      },
+      {
+        "seconds": 904,
+        "text": "Martin Luther King’s speech mobilized 250,000 people because they believed his message."
+      },
+      {
+        "seconds": 1038,
+        "text": "True leaders inspire by starting with why, rather than merely holding power."
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 16,
+        "title": "Why Some Innovate",
+        "summary": "The speaker questions why companies like Apple and leaders like Martin Luther King succeed despite similar resources."
+      },
+      {
+        "startTime": 115,
+        "title": "The Golden Circle",
+        "summary": "He introduces the simple model of Why‑How‑What that explains why great leaders inspire."
+      },
+      {
+        "startTime": 279,
+        "title": "Brain & Decision Making",
+        "summary": "He links the Golden Circle to the brain’s limbic system, showing how emotion drives action."
+      },
+      {
+        "startTime": 840,
+        "title": "TiVo’s Failure & Why People Buy",
+        "summary": "The speaker explains TiVo’s commercial failure and argues that consumers buy the purpose behind a product, not the product itself."
+      },
+      {
+        "startTime": 904,
+        "title": "Dr. King’s Diffusion of Innovation",
+        "summary": "The speaker uses Dr. King’s 1963 speech as an example of how a compelling ‘why’ can mobilize large audiences without formal invitations."
+      },
+      {
+        "startTime": 1038,
+        "title": "Leaders vs. Those Who Lead",
+        "summary": "The speaker distinguishes between holding power and inspiring action, emphasizing that true leaders start with a clear ‘why’."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-24T18:11:07.590Z"
+  },
+  "yt-aircAruvnKk": {
+    "overview": "The video is presented by 3Blue1Brown, who explains the basics of neural networks using handwritten digit recognition as a running example. He starts by contrasting human and machine perception, then introduces the network’s architecture, and walks through how weights, biases, and activation functions are represented mathematically. The flow moves from intuitive concepts to linear‑algebraic implementation, ending with a brief preview of future content and a discussion of activation function choices.",
+    "mainArgument": "The central thesis is that a neural network is a complex function built from simple neuron units, whose parameters (weights and biases) are learned through data. The talk emphasizes the importance of linear algebra for efficient computation and the role of activation functions in shaping the network’s behavior.",
+    "keyPoints": [
+      {
+        "seconds": 4,
+        "text": "Humans can recognize a 28×28 pixel digit as a ‘3’ despite extreme pixel variation."
+      },
+      {
+        "seconds": 75,
+        "text": "The speaker outlines that future videos will focus first on structure, then on learning, using digit recognition as a concrete example."
+      },
+      {
+        "seconds": 172,
+        "text": "The network architecture consists of 784 input neurons, two hidden layers of 16 neurons each, and 10 output neurons."
+      },
+      {
+        "seconds": 828,
+        "text": "Weights between layers are organized into matrices, enabling efficient matrix‑vector multiplication and highlighting linear algebra’s role."
+      },
+      {
+        "seconds": 869,
+        "text": "Biases are vectorized and added to the weighted sum before applying a sigmoid activation, simplifying code and improving performance."
+      },
+      {
+        "seconds": 914,
+        "text": "Each neuron acts as a function mapping previous activations to a value between 0 and 1, making the network a complex function."
+      },
+      {
+        "seconds": 947,
+        "text": "The network has roughly 13,000 parameters, raising the question of how it learns appropriate weights from data."
+      },
+      {
+        "seconds": 1050,
+        "text": "Modern neural networks rarely use sigmoid; ReLU is preferred for training deep models."
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 4,
+        "title": "Human vs Machine Digit Recognition",
+        "summary": "The speaker contrasts the human brain’s effortless recognition of low‑resolution digits with the challenge of programming a computer to perform the same task."
+      },
+      {
+        "startTime": 75,
+        "title": "Introducing Neural Networks",
+        "summary": "An overview of neural networks is given, emphasizing that the upcoming videos will focus on structure first, then learning, using handwritten digit recognition as a concrete example."
+      },
+      {
+        "startTime": 172,
+        "title": "Neural Network Architecture",
+        "summary": "The speaker explains the layers of a simple feed‑forward network: 784 input neurons, two hidden layers of 16 neurons each, and 10 output neurons, and discusses how activations propagate."
+      },
+      {
+        "startTime": 828,
+        "title": "Matrix Representation of Weights",
+        "summary": "The speaker explains how weights between layers are organized into a matrix, enabling efficient matrix‑vector multiplication and highlighting the importance of linear algebra in machine learning."
+      },
+      {
+        "startTime": 869,
+        "title": "Biases and Activation Functions",
+        "summary": "Biases are vectorized and added to the weighted sum, followed by applying a sigmoid function element‑wise, simplifying code and improving performance."
+      },
+      {
+        "startTime": 914,
+        "title": "Neurons as Functions",
+        "summary": "Neurons are described as functions that transform previous layer outputs into values between 0 and 1, making the entire network a complex function mapping 784 inputs to 10 outputs."
+      },
+      {
+        "startTime": 947,
+        "title": "Complexity and Learning",
+        "summary": "The network’s 13,000 parameters and iterative matrix operations form a highly complex function, raising the question of how it learns appropriate weights from data."
+      },
+      {
+        "startTime": 980,
+        "title": "Future Content and Promotion",
+        "summary": "The speaker hints at upcoming videos, encourages subscribing to influence YouTube recommendations, and thanks Patreon supporters."
+      },
+      {
+        "startTime": 1010,
+        "title": "Discussion of Sigmoid and ReLU",
+        "summary": "Lisha Li explains the historical use of sigmoid, its biological motivation, and the modern preference for ReLU due to easier training of deep networks."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-24T18:12:09.475Z"
+  },
+  "yt-iCvmsMzlF7o": {
+    "overview": "Brené Brown, a researcher and storyteller, delivers a TED talk on vulnerability, weaving personal anecdotes with academic insights. She begins by debating her identity as a storyteller versus a researcher, then traces her shift from measuring phenomena to valuing human connection. The talk unfolds through themes of shame, worthiness, and the dangers of numbing emotions, concluding with practical advice for parents and a call to embrace vulnerability as a source of joy.",
+    "mainArgument": "Brown argues that vulnerability is essential for connection, joy, and creativity, and that society’s move toward certainty and blame undermines this. She emphasizes that shame stems from fear of disconnection and that cultivating worthiness allows us to embrace vulnerability.",
+    "keyPoints": [
+      {
+        "seconds": 16,
+        "text": "Brown debates whether she should be marketed as a storyteller or researcher, ultimately embracing a hybrid role."
+      },
+      {
+        "seconds": 112,
+        "text": "She recounts her academic journey, noting a shift from measuring to valuing messy human connection."
+      },
+      {
+        "seconds": 275,
+        "text": "Brown explains that shame is the fear of disconnection and that everyone experiences it."
+      },
+      {
+        "seconds": 438,
+        "text": "She claims that feeling worthy of love and belonging requires a strong sense of worthiness."
+      },
+      {
+        "seconds": 615,
+        "text": "Brown asserts vulnerability is necessary, not uncomfortable, and births joy, creativity, belonging, and love."
+      },
+      {
+        "seconds": 955,
+        "text": "She warns that numbing pain also numbs joy, gratitude, and happiness."
+      },
+      {
+        "seconds": 1016,
+        "text": "Brown critiques the shift from faith and mystery to certainty in religion and politics, linking it to blame and lack of discourse."
+      },
+      {
+        "seconds": 1080,
+        "text": "She advises parents to acknowledge children’s imperfections and inherent struggle rather than striving for perfection."
+      }
+    ],
+    "chapters": [
+      {
+        "startTime": 16,
+        "title": "Storyteller vs. Researcher",
+        "summary": "The speaker debates how to be marketed—storyteller or researcher—and embraces the idea of being a researcher‑storyteller."
+      },
+      {
+        "startTime": 112,
+        "title": "From Measurement to Connection",
+        "summary": "She recounts her academic journey, the tension between measuring phenomena and valuing messy human connection, and her pivot to studying connection."
+      },
+      {
+        "startTime": 275,
+        "title": "Shame, Vulnerability, and Worthiness",
+        "summary": "The speaker reveals how shame, rooted in fear of disconnection, is linked to vulnerability, and how a sense of worthiness underpins connection."
+      },
+      {
+        "startTime": 955,
+        "title": "Numbing Emotions",
+        "summary": "Speaker discusses how trying to avoid vulnerability by numbing emotions also numbs joy and gratitude, leading to misery."
+      },
+      {
+        "startTime": 1016,
+        "title": "Certainty vs. Vulnerability",
+        "summary": "Speaker critiques the shift from faith and mystery to certainty in religion and politics, linking fear and blame to a lack of discourse."
+      },
+      {
+        "startTime": 1080,
+        "title": "Raising Children with Vulnerability",
+        "summary": "Speaker argues that parents should embrace children's imperfections and inherent struggle, fostering worthiness of love rather than perfection."
+      }
+    ],
+    "model": "openai/gpt-oss-20b",
+    "createdAt": "2026-10-24T18:13:10.790Z"
   }
 }

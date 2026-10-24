@@ -2,7 +2,7 @@ import { PodcastEpisode, TranscriptChunk } from "@/types/podcast";
 import { generateEmbeddings } from "./embeddings";
 import { getEpisodeById, saveLibraryEpisode } from "./episodes";
 import { ensureSummary } from "./summary";
-import { CaptionSegment, fetchYouTubeVideo, parseYouTubeVideoId } from "./youtube";
+import { CaptionSegment, fetchYouTubeVideo, parseYouTubeVideoId, YouTubeBlockedError } from "./youtube";
 
 // Caption lines are only a few seconds long. Grouping them into ~30-45s passages
 // gives each embedding enough context to match a question, while keeping a
@@ -26,7 +26,12 @@ const MAX_CONCURRENT_INGESTS = Number(process.env.MAX_CONCURRENT_INGESTS) || 2;
 // Two clicks on the same link share one ingest instead of embedding twice
 const inFlight = new Map<string, Promise<PodcastEpisode>>();
 
-export class IngestError extends Error {}
+export class IngestError extends Error {
+  // "youtube_blocked" when YouTube refused this server, so the UI can suggest running locally
+  constructor(message: string, readonly code?: "youtube_blocked") {
+    super(message);
+  }
+}
 
 export function youtubeEpisodeId(videoId: string): string {
   return `yt-${videoId}`;
@@ -63,6 +68,12 @@ async function buildEpisode(id: string, videoId: string): Promise<PodcastEpisode
   try {
     video = await fetchYouTubeVideo(videoId);
   } catch (err) {
+    if (err instanceof YouTubeBlockedError) {
+      throw new IngestError(
+        "YouTube blocks this public server from fetching captions, so pasted links only work when you run Scrubcast yourself.",
+        "youtube_blocked"
+      );
+    }
     throw new IngestError(err instanceof Error ? err.message : "Couldn't fetch the video");
   }
 

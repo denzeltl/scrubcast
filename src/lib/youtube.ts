@@ -25,6 +25,17 @@ export interface YouTubeVideo {
   segments: CaptionSegment[];
 }
 
+/**
+ * YouTube refused this server, not this video. It blocks most cloud and datacenter
+ * IPs, so on a hosted deploy every pasted link fails this way; locally it works.
+ */
+export class YouTubeBlockedError extends Error {}
+
+// Bot checks come back as LOGIN_REQUIRED with a "confirm you're not a bot" reason
+function isBotCheck(playability: { status?: string; reason?: string } | undefined): boolean {
+  return playability?.status === "LOGIN_REQUIRED" && /bot/i.test(playability.reason ?? "");
+}
+
 interface CaptionTrack {
   baseUrl: string;
   languageCode: string;
@@ -84,12 +95,18 @@ export async function fetchYouTubeVideo(videoId: string): Promise<YouTubeVideo> 
     }),
   });
 
+  if (res.status === 403 || res.status === 429) {
+    throw new YouTubeBlockedError(`YouTube returned ${res.status} while looking up the video`);
+  }
   if (!res.ok) {
     throw new Error(`YouTube returned ${res.status} while looking up the video`);
   }
 
   const player = await res.json();
   const playability = player.playabilityStatus;
+  if (isBotCheck(playability)) {
+    throw new YouTubeBlockedError(`YouTube won't serve this video (${playability.status}: ${playability.reason})`);
+  }
   if (playability?.status !== "OK") {
     throw new Error(
       `YouTube won't serve this video (${playability?.status ?? "unknown"}${
@@ -109,6 +126,9 @@ export async function fetchYouTubeVideo(videoId: string): Promise<YouTubeVideo> 
   const captionRes = await fetch(track.baseUrl.replace(/&fmt=[^&]*/, ""), {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  if (captionRes.status === 403 || captionRes.status === 429) {
+    throw new YouTubeBlockedError(`YouTube returned ${captionRes.status} while fetching captions`);
+  }
   if (!captionRes.ok) {
     throw new Error(`YouTube returned ${captionRes.status} while fetching captions`);
   }

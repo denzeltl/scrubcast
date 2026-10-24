@@ -1,8 +1,17 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { AlertCircle, Link2, Loader2 } from "lucide-react";
+import { AlertCircle, ExternalLink, Link2, Loader2 } from "lucide-react";
 import { PodcastEpisode } from "@/types/podcast";
+import { SOURCE_URL } from "@/lib/site";
+
+// What a visitor runs to get pasted links working on their own machine
+const LOCAL_SETUP = [
+  `git clone ${SOURCE_URL}.git`,
+  "cd scrubcast",
+  "npm install",
+  "npm run dev",
+];
 
 interface SourceRowProps {
   currentEpisode: PodcastEpisode;
@@ -10,6 +19,8 @@ interface SourceRowProps {
   onIngest: (url: string) => Promise<boolean>;
   isIngesting: boolean;
   error: string | null;
+  // YouTube refused the server itself, so explain how to run Scrubcast locally
+  youtubeBlocked?: boolean;
 }
 
 /**
@@ -21,6 +32,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   onIngest,
   isIngesting,
   error,
+  youtubeBlocked = false,
 }) => {
   const [url, setUrl] = useState("");
   const fieldRef = useRef<HTMLDivElement>(null);
@@ -127,6 +139,42 @@ export const SourceRow: React.FC<SourceRowProps> = ({
           ) : null}
         </div>
       </div>
+
+      {youtubeBlocked && !isIngesting && (
+        <div className="md:col-span-2 border-t border-[var(--color-border-deck)] pt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] animate-label-in">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-xs font-mono uppercase tracking-wider text-[var(--color-ink-faint)]">
+              Run it yourself
+            </p>
+            <p className="text-sm text-[var(--color-ink-muted)]">
+              Pasting YouTube links here is coming soon. Until then, the featured videos work
+              here, and you can search any video by running Scrubcast on your own computer, where
+              YouTube serves captions normally. You need Node.js 22 or newer.
+            </p>
+            <a
+              href={SOURCE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 min-h-[44px] text-xs font-semibold text-[var(--color-accent)] rounded underline-offset-4 [@media(hover:hover)]:hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+            >
+              Get the code on GitHub
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+          <div className="min-w-0 space-y-1.5">
+            <pre
+              aria-label="Commands to run Scrubcast locally"
+              className="bg-[var(--color-chassis)] border border-[var(--color-border-deck)] rounded-lg px-3 py-2.5 text-xs font-mono text-[var(--color-ink)] overflow-x-auto"
+            >
+              {LOCAL_SETUP.join("\n")}
+            </pre>
+            <p className="text-xs text-[var(--color-ink-faint)]">
+              Then open localhost:3000. For written answers, add a free Groq key to .env.local
+              (see the README).
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

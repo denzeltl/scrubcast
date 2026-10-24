@@ -5,6 +5,9 @@ export const SITE_TAGLINE = "Ask a video anything, jump to the answer";
 export const SITE_DESCRIPTION =
   "Ask questions about any YouTube video. Scrubcast finds the moments that answer you, cites their timestamps, and jumps the player to the exact second.";
 
+// Where visitors can get the code to run it themselves
+export const SOURCE_URL = "https://github.com/denzeltl/scrubcast";
+
 // Brand colours used outside CSS (browser UI, manifest)
 export const THEME_COLOR = "#0a0b0a";
 
