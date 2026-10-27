@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { AlertCircle, ExternalLink, Link2, Loader2 } from "lucide-react";
+import { AlertCircle, ExternalLink, Link2, Loader2, Server } from "lucide-react";
 import { PodcastEpisode } from "@/types/podcast";
 import { SOURCE_URL } from "@/lib/site";
+import { prewarmServer } from "@/lib/prewarm";
 
 // What a visitor runs to get pasted links working on their own machine
 const LOCAL_SETUP = [
@@ -21,6 +22,7 @@ interface SourceRowProps {
   error: string | null;
   // YouTube refused the server itself, so explain how to run Scrubcast locally
   youtubeBlocked?: boolean;
+  ingestElapsedSec?: number;
 }
 
 /**
@@ -33,6 +35,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   isIngesting,
   error,
   youtubeBlocked = false,
+  ingestElapsedSec = 0,
 }) => {
   const [url, setUrl] = useState("");
   const fieldRef = useRef<HTMLDivElement>(null);
@@ -67,6 +70,8 @@ export const SourceRow: React.FC<SourceRowProps> = ({
     }
   };
 
+  const isColdStarting = isIngesting && ingestElapsedSec >= 3;
+
   return (
     <section
       aria-label="Video source"
@@ -99,6 +104,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
               type="url"
               inputMode="url"
               value={url}
+              onFocus={() => prewarmServer()}
               onChange={(e) => setUrl(e.target.value)}
               // readOnly, not disabled: disabling would blur the field and lose the caret after an error
               readOnly={isIngesting}
@@ -116,9 +122,19 @@ export const SourceRow: React.FC<SourceRowProps> = ({
             disabled={isIngesting || !url.trim()}
             className="shrink-0 inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold text-xs cursor-pointer transition-[transform,background-color,box-shadow] duration-[140ms] ease-[cubic-bezier(0.16,1,0.3,1)] [@media(hover:hover)]:hover:bg-[var(--color-accent-hover)] [@media(hover:hover)]:hover:-translate-y-px active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-hover)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:bg-[var(--color-surface-active)] disabled:text-[var(--color-ink-faint)] disabled:border disabled:border-[var(--color-border-deck)] disabled:translate-y-0 disabled:cursor-not-allowed motion-reduce:transition-colors motion-reduce:hover:translate-y-0"
           >
-            {isIngesting && <Loader2 className="w-4 h-4 animate-spin" />}
-            <span key={isIngesting ? "busy" : "idle"} className="animate-label-in">
-              {isIngesting ? "Indexing…" : "Index video"}
+            {isIngesting && (
+              isColdStarting ? (
+                <Server className="w-4 h-4 text-[var(--color-accent-ink)] animate-pulse" />
+              ) : (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )
+            )}
+            <span key={isIngesting ? (isColdStarting ? "waking" : "busy") : "idle"} className="animate-label-in font-mono">
+              {isIngesting
+                ? isColdStarting
+                  ? `Waking (${Math.floor(ingestElapsedSec)}s)`
+                  : "Indexing…"
+                : "Index video"}
             </span>
           </button>
         </form>
@@ -126,7 +142,9 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <div id="source-row-status" aria-live="polite">
           {isIngesting ? (
             <p className="text-xs text-[var(--color-ink-muted)]">
-              Fetching captions and indexing them. A 3-hour episode takes about 20 seconds.
+              {isColdStarting
+                ? `Waking backend container & downloading captions (${Math.floor(ingestElapsedSec)}s)... Free-tier servers take ~20–30s on cold start.`
+                : "Fetching captions and indexing them. A 3-hour episode takes about 20 seconds."}
             </p>
           ) : error ? (
             <p

@@ -11,8 +11,10 @@ import { TranscriptFeed } from "@/components/TranscriptFeed";
 import { SourceRow } from "@/components/SourceRow";
 import { useEpisodeSummary } from "@/components/useEpisodeSummary";
 import { SummaryCard } from "@/components/SummaryCard";
-import { AlertCircle, Sparkles } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
+import { prewarmServer } from "@/lib/prewarm";
+import { ColdStartIndicator, ColdStartBanner } from "@/components/ColdStartIndicator";
 
 interface WorkbenchProps {
   episodes: PodcastEpisode[];
@@ -113,12 +115,14 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   // Grows as the user indexes YouTube links
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>(initialEpisodes);
   const [isIngesting, setIsIngesting] = useState<boolean>(false);
+  const [ingestElapsedSec, setIngestElapsedSec] = useState<number>(0);
   const [ingestError, setIngestError] = useState<string | null>(null);
   const [youtubeBlocked, setYoutubeBlocked] = useState(false);
   const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode>(episodes[0]);
   const [query, setQuery] = useState<string>(() => defaultQueryFor(episodes[0]));
   // Starts true because the first search fires on mount
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchElapsedSec, setSearchElapsedSec] = useState<number>(0);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [activeSecond, setActiveSecond] = useState<number>(0);
@@ -130,6 +134,53 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   // Only the most recent request may write results, so a slow answer for a
   // previous episode or query can't overwrite a newer one
   const latestRequestRef = useRef(0);
+
+  // Pre-warm backend on page mount, tab visibility resume, or window focus
+  useEffect(() => {
+    prewarmServer();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        prewarmServer();
+      }
+    };
+    const handleFocus = () => {
+      prewarmServer();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
+  // Track search elapsed time for cold start detection
+  useEffect(() => {
+    if (!isLoading) {
+      setSearchElapsedSec(0);
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setSearchElapsedSec((Date.now() - start) / 1000);
+    }, 200);
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
+  // Track ingest elapsed time for cold start detection
+  useEffect(() => {
+    if (!isIngesting) {
+      setIngestElapsedSec(0);
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setIngestElapsedSec((Date.now() - start) / 1000);
+    }, 200);
+    return () => clearInterval(interval);
+  }, [isIngesting]);
 
   // Perform search against local vector index & Groq.
   // State is only set from promise callbacks so this is safe to call from an effect.
@@ -247,6 +298,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
           isIngesting={isIngesting}
           error={ingestError}
           youtubeBlocked={youtubeBlocked}
+          ingestElapsedSec={ingestElapsedSec}
         />
 
         {/* Command Search Bar */}
@@ -258,6 +310,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
             onSearch={(q) => startSearch(q ?? query, currentEpisode.id)}
             isLoading={isLoading}
             latencyMs={searchResult?.latencyMs?.total}
+            elapsedSec={searchElapsedSec}
           />
         </section>
 
@@ -280,20 +333,23 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
 
             {/* The answer, with [MM:SS] chips that seek the player */}
             {searchResult ? (
-              <SynthesizedAnswer
-                searchResult={searchResult}
-                onSeek={handleSeek}
-                activeSecond={activeSecond}
-              />
-            ) : (
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border-deck)] rounded-2xl p-8 text-center text-sm text-[var(--color-ink-muted)] space-y-3 shadow-lg">
-                <Sparkles className="w-6 h-6 mx-auto text-[var(--color-accent-hover)]" />
-                <p>
-                  {isLoading
-                    ? "Searching the transcript…"
-                    : "Ask a question above. The answer cites timestamps you can click to jump the video to that moment."}
-                </p>
+              <div className="relative space-y-4">
+                {isLoading && searchElapsedSec >= 2.5 && (
+                  <ColdStartBanner elapsedSec={searchElapsedSec} />
+                )}
+                <div className={isLoading ? "opacity-60 transition-opacity pointer-events-none" : ""}>
+                  <SynthesizedAnswer
+                    searchResult={searchResult}
+                    onSeek={handleSeek}
+                    activeSecond={activeSecond}
+                  />
+                </div>
               </div>
+            ) : (
+              <ColdStartIndicator
+                isLoading={isLoading}
+                elapsedSec={searchElapsedSec}
+              />
             )}
             </div>
 

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { Search, Loader2, ArrowRight, Clock } from "lucide-react";
+import { Search, Loader2, ArrowRight, Clock, Server } from "lucide-react";
 import { PodcastEpisode } from "@/types/podcast";
+import { prewarmServer } from "@/lib/prewarm";
 
 interface SearchBarProps {
   currentEpisode: PodcastEpisode;
@@ -11,6 +12,7 @@ interface SearchBarProps {
   onSearch: (q?: string) => void;
   isLoading: boolean;
   latencyMs?: number;
+  elapsedSec?: number;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -20,6 +22,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   isLoading,
   latencyMs,
+  elapsedSec = 0,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,13 +47,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
   };
 
+  const isColdStarting = isLoading && elapsedSec >= 2.5;
+
   return (
     <div className="w-full space-y-3">
       {/* Search Input Box */}
       <form onSubmit={handleSubmit} className="relative group">
         <div className="relative flex items-center bg-[var(--color-surface)] border border-[var(--color-border-deck)] rounded-xl shadow-lg transition-all duration-200 focus-within:border-[var(--color-accent)] focus-within:ring-2 focus-within:ring-[var(--color-accent)]/20">
           <div className="pl-4 pr-2 text-[var(--color-ink-muted)] group-focus-within:text-[var(--color-accent-hover)] transition-colors">
-            {isLoading ? (
+            {isColdStarting ? (
+              <Server className="w-5 h-5 text-[var(--color-accent)] animate-pulse" />
+            ) : isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)]" />
             ) : (
               <Search className="w-5 h-5" />
@@ -61,6 +68,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             ref={inputRef}
             type="text"
             value={query}
+            onFocus={() => prewarmServer()}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask anything about this video…"
             className="w-full py-3.5 pr-14 sm:pr-24 text-sm md:text-base bg-transparent text-[var(--color-ink)] placeholder-[var(--color-ink-faint)] outline-none font-sans"
@@ -75,8 +83,19 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               aria-label="Ask"
               className="flex items-center gap-1.5 h-9 px-3 sm:px-3.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-display font-extrabold text-sm cursor-pointer transition-[transform,background-color] duration-[140ms] ease-[cubic-bezier(0.16,1,0.3,1)] [@media(hover:hover)]:hover:bg-[var(--color-accent-hover)] [@media(hover:hover)]:hover:-translate-y-px active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:bg-[var(--color-surface-active)] disabled:text-[var(--color-ink-faint)] disabled:border disabled:border-[var(--color-border-deck)] disabled:translate-y-0 disabled:cursor-not-allowed"
             >
-              <span className="hidden sm:inline">Ask</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              {isColdStarting ? (
+                <>
+                  <span className="hidden sm:inline font-mono text-xs">
+                    Waking ({Math.floor(elapsedSec)}s)
+                  </span>
+                  <span className="sm:hidden font-mono text-xs">{Math.floor(elapsedSec)}s</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Ask</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -91,6 +110,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           {suggestions.map((item, index) => (
             <button
               key={index}
+              onMouseEnter={() => prewarmServer()}
               onClick={() => {
                 setQuery(item);
                 onSearch(item);

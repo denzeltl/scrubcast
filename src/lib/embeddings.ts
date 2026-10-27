@@ -5,6 +5,40 @@ env.allowLocalModels = false;
 
 // Singleton pipeline instance to prevent re-initializing model on each request
 let embedderPromise: ReturnType<typeof pipeline<"feature-extraction">> | null = null;
+let isWarmed = false;
+let warmingPromise: Promise<void> | null = null;
+
+/**
+ * Returns true if the embedding pipeline has finished initialization and is ready in RAM
+ */
+export function isEmbeddingReady(): boolean {
+  return isWarmed;
+}
+
+/**
+ * Eagerly warm the ONNX embedding model in the background so cold starts
+ * don't delay the first visitor's question.
+ */
+export async function warmEmbeddingPipeline(): Promise<void> {
+  if (isWarmed) return;
+  if (warmingPromise) return warmingPromise;
+
+  warmingPromise = (async () => {
+    try {
+      const pipe = await getEmbeddingPipeline();
+      // Run a tiny 1-token warm-up inference to load weights into ONNX session
+      await pipe("warm", { pooling: "mean", normalize: true });
+      isWarmed = true;
+    } catch (err) {
+      // Non-fatal; if warming fails (e.g. offline during tests), retry on actual query
+      console.warn("Embedding pipeline warm-up non-fatal notice:", err);
+    } finally {
+      warmingPromise = null;
+    }
+  })();
+
+  return warmingPromise;
+}
 
 export async function getEmbeddingPipeline() {
   if (!embedderPromise) {
@@ -29,6 +63,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     pooling: "mean",
     normalize: true,
   });
+  isWarmed = true;
   return Array.from(output.data as Float32Array);
 }
 
@@ -52,6 +87,7 @@ export async function generateEmbeddings(
     }
   }
 
+  isWarmed = true;
   return vectors;
 }
 
