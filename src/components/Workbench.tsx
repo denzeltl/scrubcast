@@ -158,28 +158,28 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
 
   // Track search elapsed time for cold start detection
   useEffect(() => {
-    if (!isLoading) {
-      setSearchElapsedSec(0);
-      return;
-    }
+    if (!isLoading) return;
     const start = Date.now();
     const interval = setInterval(() => {
       setSearchElapsedSec((Date.now() - start) / 1000);
     }, 200);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      setSearchElapsedSec(0);
+    };
   }, [isLoading]);
 
   // Track ingest elapsed time for cold start detection
   useEffect(() => {
-    if (!isIngesting) {
-      setIngestElapsedSec(0);
-      return;
-    }
+    if (!isIngesting) return;
     const start = Date.now();
     const interval = setInterval(() => {
       setIngestElapsedSec((Date.now() - start) / 1000);
     }, 200);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      setIngestElapsedSec(0);
+    };
   }, [isIngesting]);
 
   // Perform search against local vector index & Groq.
