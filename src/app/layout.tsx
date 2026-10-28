@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter, Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, THEME_COLOR, siteUrl } from "@/lib/site";
+import { ServerWarmupBanner } from "@/components/ServerWarmupBanner";
 
 // Inter for reading, Inter Tight 800 for headings, Geist Mono for every number
 const inter = Inter({
@@ -60,7 +61,10 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${interTight.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ServerWarmupBanner />
+        {children}
+      </body>
     </html>
   );
 }
