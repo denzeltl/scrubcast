@@ -4,7 +4,7 @@ import { GROQ_MODEL, synthesizeAnswer } from "@/lib/groq";
 import { getEpisodeById } from "@/lib/episodes";
 import { getSummary } from "@/lib/summary";
 import { checkRateLimit, LIMITS } from "@/lib/rateLimit";
-import { SearchResult } from "@/types/podcast";
+import { ChatHistoryItem, SearchResult } from "@/types/podcast";
 
 const MAX_QUERY_LENGTH = 500;
 
@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Request body must be JSON" }, { status: 400 });
   }
 
-  const { query: rawQuery, episodeId } = (body ?? {}) as Record<string, unknown>;
+  const {
+    query: rawQuery,
+    episodeId,
+    history: rawHistory,
+    mode: rawMode,
+  } = (body ?? {}) as Record<string, unknown>;
   const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
 
   if (!query) {
@@ -45,6 +50,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const mode = rawMode === "hybrid" ? "hybrid" : "video_only";
+  const history: ChatHistoryItem[] = Array.isArray(rawHistory)
+    ? rawHistory
+        .filter((item): item is ChatHistoryItem => Boolean(item && typeof item === "object" && "query" in item && "answer" in item))
+        .slice(-6)
+    : [];
+
   const episode = getEpisodeById(episodeId);
   if (!episode) {
     return NextResponse.json(
@@ -57,12 +69,13 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1. Vector Search via local Xenova bge-small-en-v1.5
+    // In follow-up turns, search using the current query
     const { matches, embeddingLatencyMs, searchLatencyMs } =
       await searchEpisodeChunks(query, episodeId, 5);
 
-    // 2. Groq Cloud grounded synthesis
+    // 2. Groq Cloud synthesis (with conversation history and knowledge mode)
     const { answer, citations, latencyMs: synthesisLatencyMs, isFallback } =
-      await synthesizeAnswer(query, matches, summary, episode.duration);
+      await synthesizeAnswer(query, matches, summary, episode.duration, history, mode);
 
     const totalLatency = Date.now() - tTotalStart;
 
@@ -84,6 +97,7 @@ export async function POST(req: NextRequest) {
       isFallbackGroq: isFallback,
       model: GROQ_MODEL,
       usedSummary: Boolean(summary) && !isFallback,
+      mode,
     };
 
     return NextResponse.json(result);

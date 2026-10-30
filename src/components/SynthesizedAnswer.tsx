@@ -1,15 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { cleanCaption } from "@/lib/captions";
-import { Sparkles, Play, Clock, Quote, AlertCircle } from "lucide-react";
-import { SearchResult } from "@/types/podcast";
+import { Sparkles, Play, Clock, Quote, AlertCircle, Copy, Check, Download, Globe, BookOpen } from "lucide-react";
+import { ChatHistoryItem, EpisodeSummary, PodcastEpisode, SearchResult } from "@/types/podcast";
 import { parseTimestampToSeconds } from "@/lib/time";
 
 interface SynthesizedAnswerProps {
   searchResult: SearchResult;
   onSeek: (seconds: number) => void;
   activeSecond?: number;
+  currentEpisode: PodcastEpisode;
+  summary?: EpisodeSummary;
+  history: ChatHistoryItem[];
 }
 
 /**
@@ -39,8 +42,66 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
   searchResult,
   onSeek,
   activeSecond = 0,
+  currentEpisode,
+  summary,
+  history,
 }) => {
-  const { answer, citations, latencyMs, isFallbackGroq, model } = searchResult;
+  const { answer, citations, latencyMs, isFallbackGroq, model, mode = "video_only" } = searchResult;
+  const [copied, setCopied] = useState(false);
+
+  const generateMarkdownNotes = () => {
+    let md = `# Study Notes: ${currentEpisode.title}\n`;
+    md += `Source: https://www.youtube.com/watch?v=${currentEpisode.youtubeId}\n`;
+    md += `Channel: ${currentEpisode.showTitle}\n`;
+    md += `Date: ${new Date().toLocaleDateString()}\n\n`;
+
+    if (summary) {
+      md += `## Video Overview\n${summary.overview}\n\n`;
+      md += `## Main Argument\n${summary.mainArgument}\n\n`;
+      if (summary.keyPoints?.length > 0) {
+        md += `## Key Takeaways\n`;
+        summary.keyPoints.forEach((kp) => {
+          md += `- [${Math.floor(kp.seconds / 60)}:${String(kp.seconds % 60).padStart(2, "0")}] ${kp.text}\n`;
+        });
+        md += `\n`;
+      }
+    }
+
+    md += `## Q&A Session (${mode === "hybrid" ? "Hybrid Mode" : "Video-Only Mode"})\n\n`;
+    // Add past history if available
+    if (history.length > 0) {
+      history.forEach((h, idx) => {
+        md += `### Q${idx + 1}: ${h.query}\n${h.answer}\n\n`;
+      });
+    }
+
+    // Add current Q&A if not already last in history
+    const lastHistory = history[history.length - 1];
+    if (!lastHistory || lastHistory.query !== searchResult.query) {
+      md += `### Q${history.length + 1}: ${searchResult.query}\n${searchResult.answer}\n\n`;
+    }
+
+    return md;
+  };
+
+  const handleCopyNotes = async () => {
+    const text = generateMarkdownNotes();
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadNotes = () => {
+    const text = generateMarkdownNotes();
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const sanitizedTitle = currentEpisode.title.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+    link.href = url;
+    link.download = `${sanitizedTitle}-notes.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Render text and replace [MM:SS] with clickable citation buttons
   const renderSynthesizedText = (text: string) => {
@@ -110,10 +171,53 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
           </div>
         </div>
 
-        {/* Latency badge breakdown */}
-        <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ink-faint)] bg-[var(--color-chassis)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
-          <Clock className="w-3.5 h-3.5 text-[var(--color-ink-faint)]" />
-          <span>Answered in {(latencyMs.total / 1000).toFixed(1)} s</span>
+        {/* Action Controls: Mode indicator, Copy notes, Download notes, and Latency */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md border border-[var(--color-border-deck)] bg-[var(--color-surface-active)] text-[var(--color-ink-muted)]">
+            {mode === "hybrid" ? (
+              <span className="flex items-center gap-1 text-[var(--color-accent-hover)]">
+                <Globe className="w-3 h-3" /> Hybrid
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <BookOpen className="w-3 h-3" /> Video only
+              </span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyNotes}
+            className="flex items-center gap-1 text-[11px] font-mono text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] bg-[var(--color-chassis)] hover:bg-[var(--color-surface-hover)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)] transition-colors cursor-pointer"
+            title="Copy Study Notes as Markdown"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3 h-3 text-[var(--color-deck-success)]" />
+                <span className="text-[var(--color-deck-success)]">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" />
+                <span>Notes</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadNotes}
+            className="flex items-center gap-1 text-[11px] font-mono text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] bg-[var(--color-chassis)] hover:bg-[var(--color-surface-hover)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)] transition-colors cursor-pointer"
+            title="Download Notes (.md)"
+          >
+            <Download className="w-3 h-3" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+
+          <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ink-faint)] bg-[var(--color-chassis)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
+            <Clock className="w-3.5 h-3.5 text-[var(--color-ink-faint)]" />
+            <span>{(latencyMs.total / 1000).toFixed(1)} s</span>
+          </div>
         </div>
       </div>
 

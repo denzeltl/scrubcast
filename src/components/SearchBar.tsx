@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { Search, Loader2, ArrowRight, Clock, Server } from "lucide-react";
+import { Search, Loader2, ArrowRight, Clock, Server, BookOpen, Globe, RotateCcw } from "lucide-react";
 import { PodcastEpisode } from "@/types/podcast";
 import { prewarmServer } from "@/lib/prewarm";
 
@@ -13,6 +13,10 @@ interface SearchBarProps {
   isLoading: boolean;
   latencyMs?: number;
   elapsedSec?: number;
+  knowledgeMode: "video_only" | "hybrid";
+  onToggleKnowledgeMode: (mode: "video_only" | "hybrid") => void;
+  historyCount: number;
+  onClearHistory: () => void;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -23,6 +27,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   isLoading,
   latencyMs,
   elapsedSec = 0,
+  knowledgeMode,
+  onToggleKnowledgeMode,
+  historyCount,
+  onClearHistory,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -101,7 +109,66 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       </form>
 
-      {/* Suggested Quick Prompts & Latency Readout */}
+      {/* Mode toggles, thread controls & Suggested Quick Prompts */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div className="flex items-center gap-2">
+          {/* Knowledge Mode Toggle */}
+          <div className="inline-flex items-center p-0.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-deck)] text-[11px] font-mono">
+            <button
+              type="button"
+              onClick={() => onToggleKnowledgeMode("video_only")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                knowledgeMode === "video_only"
+                  ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
+                  : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+              }`}
+              title="Answers strictly using timestamps from the video"
+            >
+              <BookOpen className="w-3 h-3" />
+              <span>Video only</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleKnowledgeMode("hybrid")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                knowledgeMode === "hybrid"
+                  ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
+                  : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+              }`}
+              title="Combines video captions with general knowledge when needed"
+            >
+              <Globe className="w-3 h-3" />
+              <span>Hybrid (+ Outside knowledge)</span>
+            </button>
+          </div>
+
+          {/* Follow-up thread indicator & reset */}
+          {historyCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-[var(--color-surface)] border border-[var(--color-border-deck)] px-2.5 py-1 rounded-lg text-[11px] font-mono text-[var(--color-ink-muted)]">
+              <span>{historyCount} turn{historyCount > 1 ? "s" : ""} in memory</span>
+              <button
+                type="button"
+                onClick={onClearHistory}
+                className="text-[var(--color-accent-hover)] hover:underline flex items-center gap-0.5 cursor-pointer ml-1"
+                title="Reset conversation memory"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                <span>Reset</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {latencyMs !== undefined && (
+          <div className="flex items-center gap-1 text-[11px] font-mono text-[var(--color-secondary)] shrink-0 self-end sm:self-auto bg-[var(--color-chassis)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
+            <Clock className="w-3 h-3" />
+            <span>Answered in</span>
+            <span className="font-bold">{(latencyMs / 1000).toFixed(1)} s</span>
+          </div>
+        )}
+      </div>
+
+      {/* Suggested Quick Prompts */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
         <div className="min-w-0 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-visible pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:[mask-image:none] text-[var(--color-ink-muted)]">
           <span className="flex items-center gap-1 text-[var(--color-accent-hover)] font-mono text-[11px] font-medium shrink-0">
@@ -121,14 +188,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             </button>
           ))}
         </div>
-
-        {latencyMs !== undefined && (
-          <div className="flex items-center gap-1 text-[11px] font-mono text-[var(--color-secondary)] shrink-0 self-end sm:self-auto bg-[var(--color-chassis)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
-            <Clock className="w-3 h-3" />
-            <span>Answered in</span>
-            <span className="font-bold">{(latencyMs / 1000).toFixed(1)} s</span>
-          </div>
-        )}
       </div>
     </div>
   );

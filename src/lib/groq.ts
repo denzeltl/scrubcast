@@ -1,4 +1,4 @@
-import { Citation, EpisodeSummary, SearchMatch } from "@/types/podcast";
+import { ChatHistoryItem, Citation, EpisodeSummary, SearchMatch } from "@/types/podcast";
 import { createChatCompletion, hasGroqKey } from "./groqKeys";
 import { formatTimestamp, parseTimestampToSeconds } from "./time";
 
@@ -11,7 +11,9 @@ export async function synthesizeAnswer(
   matches: SearchMatch[],
   // Whole-video chapters and overview, when they've been generated
   summary?: EpisodeSummary,
-  episodeDuration?: number
+  episodeDuration?: number,
+  history: ChatHistoryItem[] = [],
+  mode: "video_only" | "hybrid" = "video_only"
 ): Promise<{
   answer: string;
   citations: Citation[];
@@ -43,8 +45,11 @@ export async function synthesizeAnswer(
   // Chapters and key points are citable too, so citations can snap to them
   const citable = summary ? [...matches, ...summaryAnchors(summary, episodeDuration)] : matches;
 
+  const isHybrid = mode === "hybrid";
+
   const systemPrompt = `You are Scrubcast's sub-second audio synthesis intelligence.
-Your task is to provide a direct, razor-sharp, grounded answer to the user's question using ONLY the provided material: ${
+Your task is to provide a direct, razor-sharp answer to the user's question, understanding and building upon any previous conversation history.
+Available video context: ${
     summary ? "a summary of the whole video (overview, main argument, key points, chapters) and " : ""
   }transcript excerpts retrieved for this question.
 ${
@@ -52,29 +57,51 @@ ${
     ? "Use the summary for broad questions about the whole video (main argument, themes, structure, what's covered). Use the excerpts for specifics and quotes. Combine both when useful.\n"
     : ""
 }
+${
+  isHybrid
+    ? `KNOWLEDGE MODE: HYBRID (Video + External General Knowledge)
+- Primary source: The video transcript excerpts and summary. Whenever referencing facts from the video, cite them with [MM:SS] or [HH:MM:SS] chips.
+- Secondary source: If the user asks about something not covered in the video, or asks for recommendations/comparisons beyond what the speaker stated, supplement the answer using your general knowledge.
+- IMPORTANT: Clearly distinguish external knowledge by noting (e.g., "Outside the video:" or "Beyond the talk: ...") so the user knows what is in the video versus supplementary context.`
+    : `KNOWLEDGE MODE: VIDEO ONLY (Strictly Grounded)
+- Answer using ONLY the provided video material.
+- Do NOT make up facts not found in the context. If the excerpts don't answer the question, say so plainly.`
+}
 
 CRITICAL CITATION RULES:
-1. Every major statement or insight MUST include an inline citation chip copied exactly from the source it relies on, e.g. [03:45] or [01:36:42]. Keep the hours when a source has them.
+1. Every major statement or insight derived from the video MUST include an inline citation chip copied exactly from the source it relies on, e.g. [03:45] or [01:36:42]. Keep the hours when a source has them.
 2. Only use timestamps that appear in the sources. Copy them exactly as written.
 3. Attribute quotes and perspectives to the speaker named in the source.
-4. Do NOT make up facts not found in the context. If the excerpts don't answer the question, say so plainly.
-5. Keep the synthesis concise, punchy, and structured for audio seekers.
-6. Write plain text paragraphs. Use **bold** sparingly; no headings, tables or lists.`;
+4. Keep the synthesis concise, punchy, and structured for audio seekers and learners.
+5. Write plain text paragraphs. Use **bold** sparingly; no headings, tables or lists.`;
+
+  // Build message sequence including prior conversation turns
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  // Include recent conversation turns (up to 4 past turns)
+  const recentHistory = history.slice(-4);
+  for (const item of recentHistory) {
+    if (item.query && item.answer) {
+      messages.push({ role: "user", content: item.query });
+      messages.push({ role: "assistant", content: item.answer });
+    }
+  }
 
   const userPrompt = `Question: "${query}"
 
 ${summaryString ? `Whole-Video Summary:\n${summaryString}\n\n` : ""}Retrieved Podcast Excerpts:
 ${contextString}
 
-Synthesize a grounded answer with [MM:SS] citation chips:`;
+Synthesize a grounded answer${isHybrid ? " (supplementing with general knowledge if needed, marking outside info)" : ""} with [MM:SS] citation chips:`;
+
+  messages.push({ role: "user", content: userPrompt });
 
   try {
     // Falls over to GROQ_API_KEY_BACKUP if the primary key is rejected or rate-limited
     const chatCompletion = await createChatCompletion({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
+      messages,
       model: GROQ_MODEL,
       temperature: 0.2,
       // gpt-oss reasons before answering and those tokens count against this limit,

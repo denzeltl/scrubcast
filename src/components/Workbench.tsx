@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { PodcastEpisode, SearchResult } from "@/types/podcast";
+import { ChatHistoryItem, PodcastEpisode, SearchResult } from "@/types/podcast";
 import { StudioHeader } from "@/components/StudioHeader";
 import { SearchBar } from "@/components/SearchBar";
 import { PlayerDeck, PlayerDeckHandle } from "@/components/PlayerDeck";
@@ -42,11 +42,17 @@ async function fetchIngest(url: string): Promise<PodcastEpisode> {
   return data.episode as PodcastEpisode;
 }
 
-async function fetchSearch(query: string, episodeId: string, reindexed = false): Promise<SearchResult> {
+async function fetchSearch(
+  query: string,
+  episodeId: string,
+  history: ChatHistoryItem[] = [],
+  mode: "video_only" | "hybrid" = "video_only",
+  reindexed = false
+): Promise<SearchResult> {
   const res = await fetch("/api/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, episodeId }),
+    body: JSON.stringify({ query, episodeId, history, mode }),
   });
   const data = await res.json().catch(() => null);
 
@@ -54,7 +60,7 @@ async function fetchSearch(query: string, episodeId: string, reindexed = false):
   // videos pushed them out). Re-index from the YouTube id and ask again, once.
   if (res.status === 404 && episodeId.startsWith("yt-") && !reindexed) {
     await fetchIngest(`https://youtu.be/${episodeId.slice(3)}`);
-    return fetchSearch(query, episodeId, true);
+    return fetchSearch(query, episodeId, history, mode, true);
   }
 
   if (!res.ok) {
@@ -127,6 +133,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [activeSecond, setActiveSecond] = useState<number>(0);
   const [highlightedChunkId, setHighlightedChunkId] = useState<string | undefined>(undefined);
+  const [knowledgeMode, setKnowledgeMode] = useState<"video_only" | "hybrid">("video_only");
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const summaryStatus = useEpisodeSummary(currentEpisode.id);
 
   const playerRef = useRef<PlayerDeckHandle>(null);
@@ -184,35 +192,40 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
 
   // Perform search against local vector index & Groq.
   // State is only set from promise callbacks so this is safe to call from an effect.
-  const runSearch = useCallback((q: string, episodeId: string) => {
-    const requestId = ++latestRequestRef.current;
-    const isLatest = () => requestId === latestRequestRef.current;
+  const runSearch = useCallback(
+    (q: string, episodeId: string, history: ChatHistoryItem[] = [], mode: "video_only" | "hybrid" = "video_only") => {
+      const requestId = ++latestRequestRef.current;
+      const isLatest = () => requestId === latestRequestRef.current;
 
-    return fetchSearch(q, episodeId)
-      .then(
-        (result) => {
-          if (!isLatest()) return;
-          setSearchResult(result);
-          setSearchError(null);
-          // Auto highlight top match chunk
-          setHighlightedChunkId(result.topChunks[0]?.chunk.id);
-        },
-        (err: unknown) => {
-          if (!isLatest()) return;
-          console.error("Search error:", err);
-          setSearchError(err instanceof Error ? err.message : "Search failed");
-        }
-      )
-      .finally(() => {
-        if (isLatest()) setIsLoading(false);
-      });
-  }, []);
+      return fetchSearch(q, episodeId, history, mode)
+        .then(
+          (result) => {
+            if (!isLatest()) return;
+            setSearchResult(result);
+            setSearchError(null);
+            // Append to conversation history
+            setChatHistory((prev) => [...prev, { query: q, answer: result.answer }]);
+            // Auto highlight top match chunk
+            setHighlightedChunkId(result.topChunks[0]?.chunk.id);
+          },
+          (err: unknown) => {
+            if (!isLatest()) return;
+            console.error("Search error:", err);
+            setSearchError(err instanceof Error ? err.message : "Search failed");
+          }
+        )
+        .finally(() => {
+          if (isLatest()) setIsLoading(false);
+        });
+    },
+    []
+  );
 
   const startSearch = (q: string, episodeId: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     setIsLoading(true);
-    void runSearch(trimmed, episodeId);
+    void runSearch(trimmed, episodeId, chatHistory, knowledgeMode);
   };
 
   // Bring back this visitor's own pasted videos from their browser after hydration.
@@ -254,9 +267,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
     setSearchError(null);
     setHighlightedChunkId(undefined);
     setActiveSecond(0);
+    setChatHistory([]);
     const newQuery = defaultQueryFor(ep);
     setQuery(newQuery);
-    startSearch(newQuery, ep.id);
+    setIsLoading(true);
+    void runSearch(newQuery, ep.id, [], knowledgeMode);
   };
 
   // Index a YouTube link, add it to the episode list and switch to it.
@@ -311,6 +326,10 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
             isLoading={isLoading}
             latencyMs={searchResult?.latencyMs?.total}
             elapsedSec={searchElapsedSec}
+            knowledgeMode={knowledgeMode}
+            onToggleKnowledgeMode={setKnowledgeMode}
+            historyCount={chatHistory.length}
+            onClearHistory={() => setChatHistory([])}
           />
         </section>
 
@@ -342,6 +361,9 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
                     searchResult={searchResult}
                     onSeek={handleSeek}
                     activeSecond={activeSecond}
+                    currentEpisode={currentEpisode}
+                    summary={summaryStatus && summaryStatus.state === "ready" ? summaryStatus.summary : undefined}
+                    history={chatHistory}
                   />
                 </div>
               </div>

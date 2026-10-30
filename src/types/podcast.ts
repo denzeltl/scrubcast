@@ -56,6 +56,11 @@ export interface SearchMatch {
   score: number; // 0 to 1 cosine similarity
 }
 
+export interface ChatHistoryItem {
+  query: string;
+  answer: string;
+}
+
 export interface SearchResult {
   query: string;
   answer: string;
@@ -70,4 +75,5 @@ export interface SearchResult {
   isFallbackGroq?: boolean;
   model?: string; // Groq model that wrote the answer
   usedSummary?: boolean; // whole-video summary was part of the context
+  mode?: "video_only" | "hybrid";
 }
