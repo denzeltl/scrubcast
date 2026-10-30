@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Clock, Server, Cpu, MessageSquareText, Check } from "lucide-react";
+import { Sparkles, Clock, Server, Cpu, MessageSquareText, Check, Eye, Film } from "lucide-react";
 
 interface ColdStartIndicatorProps {
   isLoading: boolean;
   elapsedSec: number;
+  engineMode?: "transcript" | "vision";
 }
 
 /**
@@ -24,14 +25,23 @@ function formatElapsed(seconds: number): string {
 export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
   isLoading,
   elapsedSec,
+  engineMode = "transcript",
 }) => {
+  const isVision = engineMode === "vision";
+
   // Not searching: standard idle guidance card
   if (!isLoading) {
     return (
       <div className="bg-[var(--color-surface)] border border-[var(--color-border-deck)] rounded-2xl p-8 text-center text-sm text-[var(--color-ink-muted)] space-y-3 shadow-lg">
-        <Sparkles className="w-6 h-6 mx-auto text-[var(--color-accent-hover)]" />
+        {isVision ? (
+          <Eye className="w-6 h-6 mx-auto text-[var(--color-accent-hover)]" />
+        ) : (
+          <Sparkles className="w-6 h-6 mx-auto text-[var(--color-accent-hover)]" />
+        )}
         <p>
-          Ask a question above. The answer cites timestamps you can click to jump the video to that moment.
+          {isVision
+            ? "Ask a question about what is shown or said in the video. Gemini will watch the video and cite clickable timestamps."
+            : "Ask a question above. The answer cites timestamps you can click to jump the video to that moment."}
         </p>
       </div>
     );
@@ -46,7 +56,7 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
         <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3.5">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-[var(--color-accent-faint)] text-[var(--color-accent-hover)]">
-              <Sparkles className="w-4 h-4" />
+              {isVision ? <Eye className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
             </div>
             <div>
               <div className="h-4 w-32 bg-[var(--color-surface-active)] rounded" />
@@ -55,7 +65,7 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ink-faint)] bg-[var(--color-chassis)] px-2.5 py-1 rounded-md border border-[var(--color-border-deck)]">
             <Clock className="w-3.5 h-3.5" />
-            <span>Searching transcript…</span>
+            <span>{isVision ? "Watching video stream…" : "Searching transcript…"}</span>
           </div>
         </div>
 
@@ -69,12 +79,11 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
     );
   }
 
-  // Cold start detected (>= 2.5s): Full broadcast monitor console
-  // Stage 1: Container spin-up (0-6s)
-  // Stage 2: ONNX vector model loading (6-14s)
-  // Stage 3: Answer synthesis & Groq processing (> 14s)
-  const isStage1Done = elapsedSec > 6;
-  const isStage2Done = elapsedSec > 14;
+  // Active Loading Telemetry Panel (>= 2.5s)
+  // Vision Mode: YouTube streaming -> Multimodal frame analysis -> Answer synthesis
+  // Transcript Mode: Container spin-up -> ONNX vector model loading -> Answer synthesis
+  const isStage1Done = elapsedSec > 5;
+  const isStage2Done = elapsedSec > 12;
 
   return (
     <div
@@ -87,17 +96,17 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
         <div className="flex items-center gap-2.5">
           <div className="relative p-2 rounded-lg bg-[var(--color-accent-faint)] text-[var(--color-accent)] border border-[var(--color-accent)]/30">
             <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
-            <Server className="w-4 h-4" />
+            {isVision ? <Eye className="w-4 h-4" /> : <Server className="w-4 h-4" />}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
-                Render Cold Start
+                {isVision ? "Gemini Multimodal Vision" : "Render Cold Start"}
               </span>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
             </div>
             <h3 className="font-display text-base font-extrabold text-[var(--color-ink)]">
-              Waking up server instance…
+              {isVision ? "Watching & analyzing video stream…" : "Waking up server instance…"}
             </h3>
           </div>
         </div>
@@ -114,7 +123,17 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
         <div className="flex items-center justify-between text-[11px] font-mono text-[var(--color-ink-muted)]">
           <span>PIPELINE TELEMETRY</span>
           <span className="text-[var(--color-accent-hover)] font-semibold">
-            {isStage2Done ? "Groq Inference" : isStage1Done ? "Vector Pipeline" : "Container Boot"}
+            {isVision
+              ? isStage2Done
+                ? "Grounded Synthesis"
+                : isStage1Done
+                ? "Frame & Audio Analysis"
+                : "YouTube Connection"
+              : isStage2Done
+              ? "Groq Inference"
+              : isStage1Done
+              ? "Vector Pipeline"
+              : "Container Boot"}
           </span>
         </div>
 
@@ -156,10 +175,16 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <span className="font-semibold text-[var(--color-ink)]">
-              1. Web Service Container
+              {isVision ? "1. YouTube Stream Access" : "1. Web Service Container"}
             </span>
             <span className="text-[var(--color-ink-muted)] ml-2">
-              {isStage1Done ? "Booted & ready" : "Resuming from 15m inactivity sleep…"}
+              {isVision
+                ? isStage1Done
+                  ? "Connected directly to stream"
+                  : "Connecting to public video stream…"
+                : isStage1Done
+                ? "Booted & ready"
+                : "Resuming from 15m inactivity sleep…"}
             </span>
           </div>
         </div>
@@ -178,17 +203,29 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
             {isStage2Done ? (
               <Check className="w-3 h-3 stroke-[3]" />
             ) : isStage1Done ? (
-              <Cpu className="w-3 h-3 animate-spin text-[var(--color-accent)]" />
+              isVision ? (
+                <Film className="w-3 h-3 animate-pulse text-[var(--color-accent)]" />
+              ) : (
+                <Cpu className="w-3 h-3 animate-spin text-[var(--color-accent)]" />
+              )
+            ) : isVision ? (
+              <Film className="w-3 h-3" />
             ) : (
               <Cpu className="w-3 h-3" />
             )}
           </div>
           <div className="flex-1 min-w-0">
             <span className="font-semibold text-[var(--color-ink)]">
-              2. Vector Embedding Engine
+              {isVision ? "2. Multimodal Frame Analysis" : "2. Vector Embedding Engine"}
             </span>
             <span className="text-[var(--color-ink-muted)] ml-2">
-              {isStage2Done
+              {isVision
+                ? isStage2Done
+                  ? "Visual & audio timeline processed"
+                  : isStage1Done
+                  ? "Analyzing visual frames, slides and audio…"
+                  : "Queued"
+                : isStage2Done
                 ? "384-d ONNX pipeline warm"
                 : isStage1Done
                 ? "Initializing transformer weights…"
@@ -212,10 +249,16 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <span className="font-semibold text-[var(--color-ink)]">
-              3. Answer Synthesis
+              {isVision ? "3. Answer & Citation Synthesis" : "3. Answer Synthesis"}
             </span>
             <span className="text-[var(--color-ink-muted)] ml-2">
-              {isStage2Done ? "Ranking video passages on Groq…" : "Awaiting model init"}
+              {isVision
+                ? isStage2Done
+                  ? "Synthesizing answer with [MM:SS] clickable chips…"
+                  : "Awaiting visual pass"
+                : isStage2Done
+                ? "Ranking video passages on Groq…"
+                : "Awaiting model init"}
             </span>
           </div>
         </div>
@@ -224,10 +267,12 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
       {/* Helpful context footnote */}
       <div className="border-l-2 border-l-[var(--color-accent)] pl-3 text-xs text-[var(--color-ink-muted)] space-y-1">
         <p className="font-medium text-[var(--color-ink)]">
-          Why the delay?
+          {isVision ? "Watching the full video" : "Why the delay?"}
         </p>
         <p>
-          Render&apos;s free tier spins down after 15 minutes of inactivity. Cold starts take ~20–35 seconds. Once awake, all subsequent questions answer in 1–2 seconds.
+          {isVision
+            ? "Gemini directly watches visual frames and listens to audio from YouTube. Multimodal analysis typically takes 10–25 seconds depending on video length."
+            : "Render's free tier spins down after 15 minutes of inactivity. Cold starts take ~20–35 seconds. Once awake, all subsequent questions answer in 1–2 seconds."}
         </p>
       </div>
     </div>
@@ -237,7 +282,12 @@ export const ColdStartIndicator: React.FC<ColdStartIndicatorProps> = ({
 /**
  * Top floating banner shown when searching if a previous result is already on screen.
  */
-export const ColdStartBanner: React.FC<{ elapsedSec: number }> = ({ elapsedSec }) => {
+export const ColdStartBanner: React.FC<{
+  elapsedSec: number;
+  engineMode?: "transcript" | "vision";
+}> = ({ elapsedSec, engineMode = "transcript" }) => {
+  const isVision = engineMode === "vision";
+
   return (
     <div
       role="status"
@@ -250,10 +300,12 @@ export const ColdStartBanner: React.FC<{ elapsedSec: number }> = ({ elapsedSec }
         </div>
         <div className="min-w-0">
           <p className="font-mono text-[11px] font-bold text-[var(--color-accent-hover)] uppercase tracking-wider truncate">
-            Waking up server instance…
+            {isVision ? "Watching & analyzing video stream…" : "Waking up server instance…"}
           </p>
           <p className="text-[11px] text-[var(--color-ink-muted)] truncate">
-            Render free-tier instance resuming (~20–35s). Answer will update automatically.
+            {isVision
+              ? "Gemini is watching visual frames and listening to audio (~10–25s). Answer will appear automatically."
+              : "Render free-tier instance resuming (~20–35s). Answer will update automatically."}
           </p>
         </div>
       </div>

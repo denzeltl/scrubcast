@@ -71,10 +71,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       <form onSubmit={handleSubmit} className="relative group">
         <div className="relative flex items-center bg-[var(--color-surface)] border border-[var(--color-border-deck)] rounded-xl shadow-lg transition-all duration-200 focus-within:border-[var(--color-accent)] focus-within:ring-2 focus-within:ring-[var(--color-accent)]/20">
           <div className="pl-4 pr-2 text-[var(--color-ink-muted)] group-focus-within:text-[var(--color-accent-hover)] transition-colors">
-            {isColdStarting ? (
-              <Server className="w-5 h-5 text-[var(--color-accent)] animate-pulse" />
-            ) : isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)]" />
+            {isLoading ? (
+              engineMode === "vision" ? (
+                <Eye className="w-5 h-5 text-[var(--color-accent)] animate-pulse" />
+              ) : isColdStarting ? (
+                <Server className="w-5 h-5 text-[var(--color-accent)] animate-pulse" />
+              ) : (
+                <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)]" />
+              )
             ) : (
               <Search className="w-5 h-5" />
             )}
@@ -106,7 +110,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               {isColdStarting ? (
                 <>
                   <span className="hidden sm:inline font-mono text-xs">
-                    Waking ({Math.floor(elapsedSec)}s)
+                    {engineMode === "vision"
+                      ? `Watching (${Math.floor(elapsedSec)}s)`
+                      : `Waking (${Math.floor(elapsedSec)}s)`}
                   </span>
                   <span className="sm:hidden font-mono text-xs">{Math.floor(elapsedSec)}s</span>
                 </>

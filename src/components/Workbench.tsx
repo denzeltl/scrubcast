@@ -15,6 +15,7 @@ import { AlertCircle } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { prewarmServer } from "@/lib/prewarm";
 import { ColdStartIndicator, ColdStartBanner } from "@/components/ColdStartIndicator";
+import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 
 interface WorkbenchProps {
   episodes: PodcastEpisode[];
@@ -375,7 +376,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
                 className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--color-deck-danger)]/10 border border-[var(--color-deck-danger)]/40 text-xs text-[var(--color-ink)]"
               >
                 <AlertCircle className="w-4 h-4 text-[var(--color-deck-danger)] shrink-0 mt-0.5" />
-                <span>{searchError}</span>
+                <span>{formatFriendlyErrorMessage(searchError)}</span>
               </div>
             )}
 
@@ -383,7 +384,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
             {searchResult ? (
               <div className="relative space-y-4">
                 {isLoading && searchElapsedSec >= 2.5 && (
-                  <ColdStartBanner elapsedSec={searchElapsedSec} />
+                  <ColdStartBanner elapsedSec={searchElapsedSec} engineMode={activeEngineMode} />
                 )}
                 <div className={isLoading ? "opacity-60 transition-opacity pointer-events-none" : ""}>
                   <SynthesizedAnswer
@@ -400,6 +401,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
               <ColdStartIndicator
                 isLoading={isLoading}
                 elapsedSec={searchElapsedSec}
+                engineMode={activeEngineMode}
               />
             )}
             </div>
@@ -437,6 +439,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
               status={summaryStatus}
               onSeek={handleSeek}
               activeSecond={activeSecond}
+              hasCaptions={currentEpisode.hasCaptions !== false}
             />
             </div>
 

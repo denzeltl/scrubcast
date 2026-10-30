@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { BookOpen, ChevronDown, Loader2, Play } from "lucide-react";
+import { BookOpen, ChevronDown, Loader2, Play, AlertCircle, Eye } from "lucide-react";
 import { SummaryChapter, SummaryStatus } from "@/types/podcast";
 import { formatTimestamp } from "@/lib/time";
+import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 
 // Chapters shown before "Show all"
 const COLLAPSED_CHAPTERS = 5;
@@ -12,6 +13,7 @@ interface SummaryCardProps {
   status: SummaryStatus | null;
   onSeek: (seconds: number) => void;
   activeSecond: number;
+  hasCaptions?: boolean;
 }
 
 function activeChapterIndex(chapters: SummaryChapter[], second: number): number {
@@ -26,7 +28,7 @@ function activeChapterIndex(chapters: SummaryChapter[], second: number): number 
  * "About this video": overview, main argument and clickable chapters, so the user
  * knows what the video covers before asking anything.
  */
-export const SummaryCard: React.FC<SummaryCardProps> = ({ status, onSeek, activeSecond }) => {
+export const SummaryCard: React.FC<SummaryCardProps> = ({ status, onSeek, activeSecond, hasCaptions = true }) => {
   const [showAll, setShowAll] = useState(false);
   const summary = status?.state === "ready" ? status.summary : null;
   const active = summary ? activeChapterIndex(summary.chapters, activeSecond) : -1;
@@ -46,7 +48,19 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ status, onSeek, active
         About this video
       </h3>
 
-      {!summary ? (
+      {!hasCaptions || status?.state === "vision_only" ? (
+        <div className="space-y-2 text-sm text-[var(--color-ink-muted)]">
+          <div className="flex items-center gap-1.5 text-[var(--color-accent-hover)] font-semibold text-xs font-mono uppercase tracking-wider">
+            <Eye className="w-3.5 h-3.5" />
+            <span>Vision Mode Video</span>
+          </div>
+          <p className="text-[14px] leading-relaxed text-[var(--color-ink)]">
+            This video has no caption track. Ask questions using{" "}
+            <strong className="text-[var(--color-accent-hover)]">Watch Video (Vision)</strong> mode, and Gemini
+            will watch and listen to the video directly.
+          </p>
+        </div>
+      ) : !summary ? (
         <SummaryPending status={status} />
       ) : (
         <div className="space-y-4 animate-label-in">
@@ -150,9 +164,21 @@ function SummaryPending({ status }: { status: SummaryStatus | null }) {
   }
   if (status.state === "error") {
     return (
-      <p role="alert" className="text-sm text-[var(--color-deck-danger)] [overflow-wrap:anywhere]">
-        Couldn&apos;t summarize this video: {status.error}. Reopen the video to try again.
-      </p>
+      <div
+        role="alert"
+        className="p-3.5 rounded-xl bg-[var(--color-deck-danger)]/10 border border-[var(--color-deck-danger)]/30 text-xs text-[var(--color-ink)] space-y-1.5"
+      >
+        <div className="flex items-center gap-2 font-semibold text-[var(--color-deck-danger)]">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>Couldn&apos;t summarize this video</span>
+        </div>
+        <p className="text-[var(--color-ink-muted)] leading-relaxed">
+          {formatFriendlyErrorMessage(status.error)}
+        </p>
+        <p className="text-[11px] text-[var(--color-ink-faint)]">
+          You can still ask questions about this video directly using the search bar above.
+        </p>
+      </div>
     );
   }
   if (status.state === "unavailable") {

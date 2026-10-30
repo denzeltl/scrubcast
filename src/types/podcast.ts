@@ -42,7 +42,8 @@ export type SummaryStatus =
   | { state: "running"; done: number; total: number }
   | { state: "error"; error: string }
   | { state: "none" } // not generated yet
-  | { state: "unavailable" }; // no Groq key
+  | { state: "unavailable" } // no Groq key
+  | { state: "vision_only" }; // Video has no captions; use Vision mode
 
 export interface Citation {
   timestamp: string; // e.g. "04:12"

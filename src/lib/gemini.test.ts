@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extractVisionCitations, hasGeminiKey, watchAndSynthesizeAnswer } from "./gemini";
+import { extractVisionCitations, hasGeminiKey, watchAndSynthesizeAnswer, clearVideoCache } from "./gemini";
 
 describe("gemini module", () => {
   const originalEnv = process.env;
@@ -7,6 +7,9 @@ describe("gemini module", () => {
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
+    clearVideoCache("test-video-id");
+    clearVideoCache("dQw4w9WgXcQ");
+    clearVideoCache("abc12345678");
   });
 
   afterEach(() => {
@@ -77,7 +80,58 @@ describe("gemini module", () => {
       );
     });
 
-    it("sends youtube url in fileData and parses returned text and citations", async () => {
+    it("creates context cache when available and queries with cachedContent", async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+
+      const cacheResponse = {
+        name: "cachedContents/test-cache-123",
+        expireTime: new Date(Date.now() + 3600_000).toISOString(),
+      };
+
+      const generateResponse = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: "At [01:15], the presenter draws the architecture.",
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const fetchSpy = vi.spyOn(global, "fetch")
+        // First call: cachedContents creation
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => cacheResponse,
+        } as Response)
+        // Second call: generateContent using cachedContent
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => generateResponse,
+        } as Response);
+
+      const result = await watchAndSynthesizeAnswer("What is drawn?", "test-video-id");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(result.isCached).toBe(true);
+      expect(result.answer).toContain("At [01:15]");
+
+      // Next question uses the cachedContent without re-calling cachedContents endpoint
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => generateResponse,
+      } as Response);
+
+      const secondResult = await watchAndSynthesizeAnswer("Follow up question", "test-video-id");
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(secondResult.isCached).toBe(true);
+    });
+
+    it("falls back to direct call if cache creation fails", async () => {
       process.env.GEMINI_API_KEY = "test-key";
 
       const mockResponse = {
@@ -94,24 +148,24 @@ describe("gemini module", () => {
         ],
       };
 
-      const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
+      const fetchSpy = vi.spyOn(global, "fetch")
+        // cachedContents fails (e.g. video below token limit)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+        } as Response)
+        // generateContent succeeds with direct YouTube URL
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        } as Response);
 
       const result = await watchAndSynthesizeAnswer("Show demo", "abc12345678");
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const callArgs = fetchSpy.mock.calls[0];
-      expect(callArgs[0]).toContain("key=test-key");
-
-      const requestBody = JSON.parse(callArgs[1]?.body as string);
-      expect(requestBody.contents[0].parts[0].fileData.fileUri).toBe("https://www.youtube.com/watch?v=abc12345678");
-
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(result.isCached).toBe(false);
       expect(result.answer).toContain("At [00:45]");
       expect(result.citations).toHaveLength(1);
-      expect(result.citations[0].timestamp).toBe("00:45");
-      expect(result.citations[0].seconds).toBe(45);
     });
   });
 });

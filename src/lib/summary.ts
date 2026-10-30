@@ -3,8 +3,9 @@ import path from "path";
 import { EpisodeSummary, PodcastEpisode, SummaryChapter, SummaryStatus, TranscriptChunk } from "@/types/podcast";
 import builtInSummaries from "@/data/built-in-summaries.json";
 import { createChatCompletion, hasGroqKey } from "./groqKeys";
-import { SAVE_TO_DISK } from "./episodes";
+import { getEpisodeById, SAVE_TO_DISK } from "./episodes";
 import { formatTimestamp, parseTimestampToSeconds } from "./time";
+import { formatFriendlyErrorMessage } from "./errorUtils";
 
 // Whole-video understanding. Retrieval only ever shows the answer model a handful of
 // passages, which can't answer "what's the main argument?". So once per video we
@@ -74,6 +75,10 @@ export function getSummary(episodeId: string): EpisodeSummary | undefined {
 }
 
 export function getSummaryStatus(episodeId: string): SummaryStatus {
+  const episode = getEpisodeById(episodeId);
+  if (episode?.hasCaptions === false) {
+    return { state: "vision_only" };
+  }
   const summary = getSummary(episodeId);
   if (summary) return { state: "ready", summary };
   const job = jobs.get(episodeId);
@@ -87,8 +92,11 @@ export function getSummaryStatus(episodeId: string): SummaryStatus {
  * A failed job is retried on the next call.
  */
 export function ensureSummary(episode: PodcastEpisode): SummaryStatus {
+  if (episode.hasCaptions === false) {
+    return { state: "vision_only" };
+  }
   const status = getSummaryStatus(episode.id);
-  if (status.state === "ready" || status.state === "running" || status.state === "unavailable") {
+  if (status.state === "ready" || status.state === "running" || status.state === "unavailable" || status.state === "vision_only") {
     return status;
   }
 
@@ -114,7 +122,7 @@ export function ensureSummary(episode: PodcastEpisode): SummaryStatus {
     })
     .catch((err: unknown) => {
       console.error(`Summary failed for ${episode.id}:`, err);
-      job.error = err instanceof Error ? err.message : "Summary failed";
+      job.error = formatFriendlyErrorMessage(err instanceof Error ? err.message : "Summary failed");
     });
   jobs.set(episode.id, job);
   return { state: "running", done: 0, total: job.total };
