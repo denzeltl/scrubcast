@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEpisodeChunks } from "@/lib/search";
 import { GROQ_MODEL, synthesizeAnswer } from "@/lib/groq";
+import { hasGeminiKey, watchAndSynthesizeAnswer } from "@/lib/gemini";
 import { getEpisodeById } from "@/lib/episodes";
 import { getSummary } from "@/lib/summary";
 import { checkRateLimit, LIMITS } from "@/lib/rateLimit";
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const mode = rawMode === "hybrid" ? "hybrid" : "video_only";
+  const mode = rawMode === "vision" ? "vision" : rawMode === "hybrid" ? "hybrid" : "video_only";
   const history: ChatHistoryItem[] = Array.isArray(rawHistory)
     ? rawHistory
         .filter((item): item is ChatHistoryItem => Boolean(item && typeof item === "object" && "query" in item && "answer" in item))
@@ -64,6 +65,50 @@ export async function POST(req: NextRequest) {
       { status: 404 }
     );
   }
+
+  // Vision Mode: Directly watch the video with Gemini
+  if (mode === "vision") {
+    if (!hasGeminiKey()) {
+      return NextResponse.json(
+        {
+          error:
+            "Gemini API key is not configured. Add GEMINI_API_KEY to your .env.local file to use Watch Video (Vision) mode.",
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const { answer, citations, latencyMs: synthesisLatencyMs, model } =
+        await watchAndSynthesizeAnswer(query, episode.youtubeId, episode.duration, history);
+
+      const totalLatency = Date.now() - tTotalStart;
+
+      const result: SearchResult = {
+        query,
+        answer,
+        citations,
+        topChunks: [],
+        latencyMs: {
+          embedding: 0,
+          search: 0,
+          synthesis: synthesisLatencyMs,
+          total: totalLatency,
+        },
+        isFallbackGroq: false,
+        model,
+        usedSummary: false,
+        mode: "vision",
+      };
+
+      return NextResponse.json(result);
+    } catch (error: unknown) {
+      console.error("Gemini Vision search error:", error);
+      const msg = error instanceof Error ? error.message : "Error analyzing video with Gemini Vision.";
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
+
   // Present once the background summary job has finished for this video
   const summary = getSummary(episodeId);
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { cleanCaption } from "@/lib/captions";
-import { Sparkles, Play, Clock, Quote, AlertCircle, Copy, Check, Download, Globe, BookOpen } from "lucide-react";
+import { Sparkles, Play, Clock, Quote, AlertCircle, Copy, Check, Download, Globe, BookOpen, Eye } from "lucide-react";
 import { ChatHistoryItem, EpisodeSummary, PodcastEpisode, SearchResult } from "@/types/podcast";
 import { parseTimestampToSeconds } from "@/lib/time";
 
@@ -67,7 +67,7 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
       }
     }
 
-    md += `## Q&A Session (${mode === "hybrid" ? "Hybrid Mode" : "Video-Only Mode"})\n\n`;
+    md += `## Q&A Session (${mode === "vision" ? "Vision Mode" : mode === "hybrid" ? "Hybrid Mode" : "Video-Only Mode"})\n\n`;
     // Add past history if available
     if (history.length > 0) {
       history.forEach((h, idx) => {
@@ -161,12 +161,14 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
           <div>
             <h3
               className="font-display text-base font-extrabold tracking-[-0.02em] text-[var(--color-ink)]"
-              title={isFallbackGroq ? "Closest passages, quoted" : `Written by ${model ?? "an LLM"} on Groq`}
+              title={isFallbackGroq ? "Closest passages, quoted" : `Written by ${model ?? "an LLM"}`}
             >
-              {isFallbackGroq ? "Closest passages" : "Answer"}
+              {isFallbackGroq ? "Closest passages" : mode === "vision" ? "Vision Answer" : "Answer"}
             </h3>
             <p className="text-xs text-[var(--color-ink-muted)]">
-              Written from what&apos;s said in the video. Click a timestamp to jump there.
+              {mode === "vision"
+                ? "Observed from visual frames and audio in the video. Click a timestamp to jump there."
+                : "Written from what's said in the video. Click a timestamp to jump there."}
             </p>
           </div>
         </div>
@@ -174,7 +176,11 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
         {/* Action Controls: Mode indicator, Copy notes, Download notes, and Latency */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md border border-[var(--color-border-deck)] bg-[var(--color-surface-active)] text-[var(--color-ink-muted)]">
-            {mode === "hybrid" ? (
+            {mode === "vision" ? (
+              <span className="flex items-center gap-1 text-[var(--color-accent-hover)] font-semibold">
+                <Eye className="w-3 h-3" /> Watch Video (Vision)
+              </span>
+            ) : mode === "hybrid" ? (
               <span className="flex items-center gap-1 text-[var(--color-accent-hover)]">
                 <Globe className="w-3 h-3" /> Hybrid
               </span>
@@ -250,7 +256,9 @@ export const SynthesizedAnswer: React.FC<SynthesizedAnswerProps> = ({
         <div className="border-t border-[var(--color-border-subtle)] pt-4 space-y-2.5">
           <h4 className="text-xs font-mono font-semibold uppercase text-[var(--color-ink-muted)] tracking-wider flex items-center gap-1.5">
             <Quote className="w-3.5 h-3.5 text-[var(--color-secondary)]" />
-            Where it&apos;s said ({citations.length})
+            {mode === "vision"
+              ? `Key video moments (${citations.length})`
+              : `Where it's said (${citations.length})`}
           </h4>
           <div className="grid grid-cols-1 gap-2.5">
             {citations.map((c, idx) => (

@@ -73,7 +73,7 @@ export interface SearchResult {
     total: number;
   };
   isFallbackGroq?: boolean;
-  model?: string; // Groq model that wrote the answer
+  model?: string; // Model that wrote the answer (Groq or Gemini)
   usedSummary?: boolean; // whole-video summary was part of the context
-  mode?: "video_only" | "hybrid";
+  mode?: "video_only" | "hybrid" | "vision";
 }

@@ -12,13 +12,13 @@ No more scrubbing through a 20-minute video to find one part. Just ask "Will the
 
 ## What it can do
 
-- Answer questions about any YouTube video that has captions and is up to 60 minutes long.
+- Answer questions about any YouTube video up to 60 minutes long.
+- Switch between **Fast (Transcript)** mode and **Watch Video (Vision)** mode (Gemini Multimodal) to answer questions about slides, screen demos, and visual moments.
 - Come with 7 ready-to-try videos (MKBHD, TED talks, Steve Jobs, 3Blue1Brown and more).
 - Keep videos you paste private. Only you see them, and they're never saved to disk.
 
 What it can't do yet:
 
-- Videos without captions
 - Podcast feeds or audio files
 - Searching several videos at once
 
@@ -77,8 +77,10 @@ All optional except the key.
 
 | Setting | What it does |
 |---|---|
-| `GROQ_API_KEY` | Writes answers and summaries. |
+| `GROQ_API_KEY` | Writes answers and summaries using fast transcript search. |
 | `GROQ_API_KEY_BACKUP` | A second key, used if the first one stops working or hits its limit. |
+| `GEMINI_API_KEY` | Powers **Watch Video (Vision)** mode to watch YouTube visual frames and audio. |
+| `GEMINI_MODEL` | Optional: Gemini model override (default `gemini-3.8-flash`). |
 | `SITE_URL` | Your public web address, for link previews. |
 
 Each visitor can add 5 videos per hour and ask 30 questions per 10 minutes. You can change these and other limits with environment variables (see `src/lib/rateLimit.ts` and `src/lib/ingest.ts`).

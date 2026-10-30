@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { Search, Loader2, ArrowRight, Clock, Server, BookOpen, Globe, RotateCcw } from "lucide-react";
+import { Search, Loader2, ArrowRight, Clock, Server, BookOpen, Globe, RotateCcw, Eye, Zap } from "lucide-react";
 import { PodcastEpisode } from "@/types/podcast";
 import { prewarmServer } from "@/lib/prewarm";
 
@@ -15,6 +15,10 @@ interface SearchBarProps {
   elapsedSec?: number;
   knowledgeMode: "video_only" | "hybrid";
   onToggleKnowledgeMode: (mode: "video_only" | "hybrid") => void;
+  engineMode: "transcript" | "vision";
+  onToggleEngineMode: (mode: "transcript" | "vision") => void;
+  hasGemini?: boolean;
+  geminiModel?: string;
   historyCount: number;
   onClearHistory: () => void;
 }
@@ -29,6 +33,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   elapsedSec = 0,
   knowledgeMode,
   onToggleKnowledgeMode,
+  engineMode,
+  onToggleEngineMode,
+  hasGemini = false,
+  geminiModel,
   historyCount,
   onClearHistory,
 }) => {
@@ -78,7 +86,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             value={query}
             onFocus={() => prewarmServer()}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask anything about this video…"
+            placeholder={
+              engineMode === "vision"
+                ? "Ask about what's shown or said on screen..."
+                : "Ask anything about this video…"
+            }
             className="w-full py-3.5 pr-14 sm:pr-24 text-sm md:text-base bg-transparent text-[var(--color-ink)] placeholder-[var(--color-ink-faint)] outline-none font-sans"
           />
 
@@ -111,36 +123,82 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Mode toggles, thread controls & Suggested Quick Prompts */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
-        <div className="flex items-center gap-2">
-          {/* Knowledge Mode Toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Engine Mode Toggle (Transcript vs Watch Video) */}
           <div className="inline-flex items-center p-0.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-deck)] text-[11px] font-mono">
             <button
               type="button"
-              onClick={() => onToggleKnowledgeMode("video_only")}
+              onClick={() => onToggleEngineMode("transcript")}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                knowledgeMode === "video_only"
+                engineMode === "transcript"
                   ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
                   : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
               }`}
-              title="Answers strictly using timestamps from the video"
+              title="Fast instant search through transcripts and captions"
             >
-              <BookOpen className="w-3 h-3" />
-              <span>Video only</span>
+              <Zap className="w-3 h-3" />
+              <span>Fast (Transcript)</span>
             </button>
             <button
               type="button"
-              onClick={() => onToggleKnowledgeMode("hybrid")}
+              onClick={() => onToggleEngineMode("vision")}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                knowledgeMode === "hybrid"
+                engineMode === "vision"
                   ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
                   : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
               }`}
-              title="Combines video captions with general knowledge when needed"
+              title={
+                hasGemini
+                  ? `Watches video frames and audio with Gemini Multimodal AI (${geminiModel || "gemini-3.8-flash"})`
+                  : "Requires GEMINI_API_KEY in .env.local"
+              }
             >
-              <Globe className="w-3 h-3" />
-              <span>Hybrid (+ Outside knowledge)</span>
+              <Eye className="w-3 h-3" />
+              <span>Watch Video (Vision)</span>
+              {!hasGemini && (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-sans ml-0.5">
+                  key needed
+                </span>
+              )}
             </button>
           </div>
+
+          {/* Sub-mode for Transcript: Video-Only vs Hybrid */}
+          {engineMode === "transcript" ? (
+            <div className="inline-flex items-center p-0.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-deck)] text-[11px] font-mono">
+              <button
+                type="button"
+                onClick={() => onToggleKnowledgeMode("video_only")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  knowledgeMode === "video_only"
+                    ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
+                    : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                }`}
+                title="Answers strictly using timestamps from the video"
+              >
+                <BookOpen className="w-3 h-3" />
+                <span>Video only</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleKnowledgeMode("hybrid")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  knowledgeMode === "hybrid"
+                    ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
+                    : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                }`}
+                title="Combines video captions with general knowledge when needed"
+              >
+                <Globe className="w-3 h-3" />
+                <span>Hybrid (+ Outside knowledge)</span>
+              </button>
+            </div>
+          ) : (
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-accent-hover)] bg-[var(--color-accent-faint)] border border-[var(--color-accent)]/20 px-2.5 py-1 rounded-md">
+              <Eye className="w-3 h-3" />
+              <span>Multimodal Vision ({geminiModel || "Gemini Flash"})</span>
+            </div>
+          )}
 
           {/* Follow-up thread indicator & reset */}
           {historyCount > 0 && (

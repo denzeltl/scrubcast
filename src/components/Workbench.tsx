@@ -20,6 +20,8 @@ interface WorkbenchProps {
   episodes: PodcastEpisode[];
   // Groq model id, shown in the header and footer
   llmModel: string;
+  hasGemini?: boolean;
+  geminiModel?: string;
 }
 
 // Carries the API's error code so the source row can tell a YouTube block from a bad link
@@ -46,7 +48,7 @@ async function fetchSearch(
   query: string,
   episodeId: string,
   history: ChatHistoryItem[] = [],
-  mode: "video_only" | "hybrid" = "video_only",
+  mode: "video_only" | "hybrid" | "vision" = "video_only",
   reindexed = false
 ): Promise<SearchResult> {
   const res = await fetch("/api/search", {
@@ -117,7 +119,12 @@ function defaultQueryFor(episode: PodcastEpisode): string {
   return episode.suggestedQueries?.[0] ?? `What is ${episode.guest} talking about?`;
 }
 
-export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes, llmModel }) => {
+export const Workbench: React.FC<WorkbenchProps> = ({
+  episodes: initialEpisodes,
+  llmModel,
+  hasGemini = false,
+  geminiModel,
+}) => {
   // Grows as the user indexes YouTube links
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>(initialEpisodes);
   const [isIngesting, setIsIngesting] = useState<boolean>(false);
@@ -133,6 +140,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [activeSecond, setActiveSecond] = useState<number>(0);
   const [highlightedChunkId, setHighlightedChunkId] = useState<string | undefined>(undefined);
+  const [engineMode, setEngineMode] = useState<"transcript" | "vision">("transcript");
   const [knowledgeMode, setKnowledgeMode] = useState<"video_only" | "hybrid">("video_only");
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const summaryStatus = useEpisodeSummary(currentEpisode.id);
@@ -190,10 +198,15 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
     };
   }, [isIngesting]);
 
-  // Perform search against local vector index & Groq.
+  // Perform search against local vector index & Groq or Gemini Vision.
   // State is only set from promise callbacks so this is safe to call from an effect.
   const runSearch = useCallback(
-    (q: string, episodeId: string, history: ChatHistoryItem[] = [], mode: "video_only" | "hybrid" = "video_only") => {
+    (
+      q: string,
+      episodeId: string,
+      history: ChatHistoryItem[] = [],
+      mode: "video_only" | "hybrid" | "vision" = "video_only"
+    ) => {
       const requestId = ++latestRequestRef.current;
       const isLatest = () => requestId === latestRequestRef.current;
 
@@ -205,8 +218,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
             setSearchError(null);
             // Append to conversation history
             setChatHistory((prev) => [...prev, { query: q, answer: result.answer }]);
-            // Auto highlight top match chunk
-            setHighlightedChunkId(result.topChunks[0]?.chunk.id);
+            // Auto highlight top match chunk if available
+            setHighlightedChunkId(result.topChunks[0]?.chunk?.id);
           },
           (err: unknown) => {
             if (!isLatest()) return;
@@ -225,7 +238,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
     const trimmed = q.trim();
     if (!trimmed) return;
     setIsLoading(true);
-    void runSearch(trimmed, episodeId, chatHistory, knowledgeMode);
+    const effectiveMode = engineMode === "vision" ? "vision" : knowledgeMode;
+    void runSearch(trimmed, episodeId, chatHistory, effectiveMode);
   };
 
   // Bring back this visitor's own pasted videos from their browser after hydration.
@@ -271,7 +285,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
     const newQuery = defaultQueryFor(ep);
     setQuery(newQuery);
     setIsLoading(true);
-    void runSearch(newQuery, ep.id, [], knowledgeMode);
+    const effectiveMode = engineMode === "vision" ? "vision" : knowledgeMode;
+    void runSearch(newQuery, ep.id, [], effectiveMode);
   };
 
   // Index a YouTube link, add it to the episode list and switch to it.
@@ -328,6 +343,17 @@ export const Workbench: React.FC<WorkbenchProps> = ({ episodes: initialEpisodes,
             elapsedSec={searchElapsedSec}
             knowledgeMode={knowledgeMode}
             onToggleKnowledgeMode={setKnowledgeMode}
+            engineMode={engineMode}
+            onToggleEngineMode={(mode) => {
+              setEngineMode(mode);
+              if (query.trim() && !isLoading) {
+                const effectiveMode = mode === "vision" ? "vision" : knowledgeMode;
+                setIsLoading(true);
+                void runSearch(query.trim(), currentEpisode.id, chatHistory, effectiveMode);
+              }
+            }}
+            hasGemini={hasGemini}
+            geminiModel={geminiModel}
             historyCount={chatHistory.length}
             onClearHistory={() => setChatHistory([])}
           />
