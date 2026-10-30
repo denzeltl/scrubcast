@@ -145,6 +145,13 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const summaryStatus = useEpisodeSummary(currentEpisode.id);
 
+  // Auto-switch to vision mode if the current episode has no server-side captions (e.g. Render fallback)
+  useEffect(() => {
+    if (currentEpisode.hasCaptions === false && engineMode !== "vision") {
+      setEngineMode("vision");
+    }
+  }, [currentEpisode, engineMode]);
+
   const playerRef = useRef<PlayerDeckHandle>(null);
   const playerDeckRef = useRef<HTMLDivElement>(null);
   // Only the most recent request may write results, so a slow answer for a
@@ -285,7 +292,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     const newQuery = defaultQueryFor(ep);
     setQuery(newQuery);
     setIsLoading(true);
-    const effectiveMode = engineMode === "vision" ? "vision" : knowledgeMode;
+    const nextEngine = ep.hasCaptions === false ? "vision" : engineMode;
+    if (ep.hasCaptions === false && engineMode !== "vision") {
+      setEngineMode("vision");
+    }
+    const effectiveMode = nextEngine === "vision" ? "vision" : knowledgeMode;
     void runSearch(newQuery, ep.id, [], effectiveMode);
   };
 

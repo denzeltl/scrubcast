@@ -19,6 +19,7 @@ export interface PodcastEpisode {
   coverImage?: string;
   suggestedQueries?: string[];
   chunks: TranscriptChunk[];
+  hasCaptions?: boolean;
 }
 
 export interface SummaryChapter {

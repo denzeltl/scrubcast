@@ -66,8 +66,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // If this video has no captions (e.g. ingested via Vision fallback on Render),
+  // automatically route to Gemini Vision to watch it directly
+  const effectiveMode = episode.hasCaptions === false ? "vision" : mode;
+
   // Vision Mode: Directly watch the video with Gemini
-  if (mode === "vision") {
+  if (effectiveMode === "vision") {
     if (!hasGeminiKey()) {
       return NextResponse.json(
         {
@@ -119,8 +123,9 @@ export async function POST(req: NextRequest) {
       await searchEpisodeChunks(query, episodeId, 5);
 
     // 2. Groq Cloud synthesis (with conversation history and knowledge mode)
+    const transcriptMode = mode === "hybrid" ? "hybrid" : "video_only";
     const { answer, citations, latencyMs: synthesisLatencyMs, isFallback } =
-      await synthesizeAnswer(query, matches, summary, episode.duration, history, mode);
+      await synthesizeAnswer(query, matches, summary, episode.duration, history, transcriptMode);
 
     const totalLatency = Date.now() - tTotalStart;
 
@@ -142,7 +147,7 @@ export async function POST(req: NextRequest) {
       isFallbackGroq: isFallback,
       model: GROQ_MODEL,
       usedSummary: Boolean(summary) && !isFallback,
-      mode,
+      mode: transcriptMode,
     };
 
     return NextResponse.json(result);

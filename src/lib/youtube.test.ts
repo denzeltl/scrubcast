@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchYouTubeVideo, parseYouTubeVideoId, YouTubeBlockedError } from "./youtube";
+import { fetchYouTubeOEmbed, fetchYouTubeVideo, parseYouTubeVideoId, YouTubeBlockedError } from "./youtube";
 
 describe("parseYouTubeVideoId", () => {
   const id = "scwlR0QHGOk";
@@ -55,5 +55,31 @@ describe("fetchYouTubeVideo", () => {
     const err = await fetchYouTubeVideo("dQw4w9WgXcQ").catch((e) => e);
     expect(err).not.toBeInstanceOf(YouTubeBlockedError);
     expect(err.message).toMatch(/private/);
+  });
+});
+
+describe("fetchYouTubeOEmbed", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("parses oEmbed JSON when successful", async () => {
+    const mockData = {
+      title: "Test Video Title",
+      author_name: "Test Author",
+      thumbnail_url: "https://example.com/thumb.jpg",
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(mockData)));
+
+    const result = await fetchYouTubeOEmbed("dQw4w9WgXcQ");
+    expect(result.title).toBe("Test Video Title");
+    expect(result.author).toBe("Test Author");
+    expect(result.thumbnailUrl).toBe("https://example.com/thumb.jpg");
+  });
+
+  it("returns fallback metadata when oEmbed request fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 404 })));
+
+    const result = await fetchYouTubeOEmbed("dQw4w9WgXcQ");
+    expect(result.title).toContain("dQw4w9WgXcQ");
+    expect(result.author).toBe("YouTube Creator");
   });
 });

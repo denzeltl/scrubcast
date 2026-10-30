@@ -174,6 +174,35 @@ export async function fetchYouTubeVideo(videoId: string): Promise<YouTubeVideo> 
   };
 }
 
+export interface YouTubeOEmbed {
+  title: string;
+  author: string;
+  thumbnailUrl?: string;
+}
+
+/**
+ * Fetch video metadata via public oEmbed endpoint.
+ * This endpoint is not blocked on cloud/datacenter IPs like Render.
+ */
+export async function fetchYouTubeOEmbed(videoId: string): Promise<YouTubeOEmbed> {
+  const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    return {
+      title: `YouTube Video (${videoId})`,
+      author: "YouTube Creator",
+    };
+  }
+  const data = await res.json();
+  return {
+    title: typeof data.title === "string" && data.title ? data.title : `YouTube Video (${videoId})`,
+    author: typeof data.author_name === "string" && data.author_name ? data.author_name : "YouTube Creator",
+    thumbnailUrl: typeof data.thumbnail_url === "string" ? data.thumbnail_url : undefined,
+  };
+}
+
 /**
  * Prefer human-written English, then auto-generated English, then anything
  */

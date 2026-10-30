@@ -2,7 +2,8 @@ import { PodcastEpisode, TranscriptChunk } from "@/types/podcast";
 import { generateEmbeddings } from "./embeddings";
 import { getEpisodeById, saveLibraryEpisode } from "./episodes";
 import { ensureSummary } from "./summary";
-import { CaptionSegment, fetchYouTubeVideo, parseYouTubeVideoId, YouTubeBlockedError } from "./youtube";
+import { CaptionSegment, fetchYouTubeVideo, fetchYouTubeOEmbed, parseYouTubeVideoId, YouTubeBlockedError } from "./youtube";
+import { hasGeminiKey } from "./gemini";
 
 // Caption lines are only a few seconds long. Grouping them into ~30-45s passages
 // gives each embedding enough context to match a question, while keeping a
@@ -69,8 +70,13 @@ async function buildEpisode(id: string, videoId: string): Promise<PodcastEpisode
     video = await fetchYouTubeVideo(videoId);
   } catch (err) {
     if (err instanceof YouTubeBlockedError) {
+      // If hosted on a cloud server like Render and blocked by YouTube,
+      // fallback to public oEmbed metadata so Gemini Vision can watch it directly
+      if (hasGeminiKey()) {
+        return buildVisionOnlyEpisode(id, videoId);
+      }
       throw new IngestError(
-        "YouTube blocks this public server from fetching captions, so pasted links only work when you run Scrubcast yourself.",
+        "YouTube blocks this public server from fetching captions, so pasted links only work when you run Scrubcast yourself (or configure GEMINI_API_KEY to watch videos with Gemini Vision).",
         "youtube_blocked"
       );
     }
@@ -97,12 +103,61 @@ async function buildEpisode(id: string, videoId: string): Promise<PodcastEpisode
     youtubeId: videoId,
     duration: video.lengthSeconds || lastChunk.endTime,
     suggestedQueries: GENERIC_QUERIES,
+    hasCaptions: video.captionLanguage !== "none",
     chunks: chunks.map((chunk, i) => ({ ...chunk, embedding: embeddings[i] })),
   };
 
   saveLibraryEpisode(episode);
   // Chapters and overview take a while on Groq's free tier; build them in the background
-  ensureSummary(episode);
+  if (episode.hasCaptions !== false) {
+    ensureSummary(episode);
+  }
+  return episode;
+}
+
+/**
+ * Fallback episode builder when cloud datacenter IPs are blocked from fetching captions.
+ * Uses public oEmbed for metadata and enables Gemini Vision to answer all questions.
+ */
+async function buildVisionOnlyEpisode(id: string, videoId: string): Promise<PodcastEpisode> {
+  const oembed = await fetchYouTubeOEmbed(videoId);
+  const placeholderText = `Video: ${oembed.title} by ${oembed.author}. This video was ingested without server-side captions. Questions are answered by watching visual frames and audio directly with Gemini Vision.`;
+
+  const dummyChunk: TranscriptChunk = {
+    id: `${id}-chunk-1`,
+    episodeId: id,
+    startTime: 0,
+    endTime: 3600,
+    speaker: oembed.author,
+    text: placeholderText,
+  };
+
+  const embeddings = await generateEmbeddings([placeholderText]);
+
+  const episode: PodcastEpisode = {
+    id,
+    title: oembed.title,
+    showTitle: oembed.author,
+    host: oembed.author,
+    guest: oembed.author,
+    youtubeId: videoId,
+    duration: 3600,
+    coverImage: oembed.thumbnailUrl,
+    hasCaptions: false,
+    suggestedQueries: [
+      "What is shown in this video?",
+      "Summarize the main visual demonstrations",
+      "What is the presenter explaining on screen?",
+    ],
+    chunks: [
+      {
+        ...dummyChunk,
+        embedding: embeddings[0],
+      },
+    ],
+  };
+
+  saveLibraryEpisode(episode);
   return episode;
 }
 

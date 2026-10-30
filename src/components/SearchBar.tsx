@@ -128,13 +128,20 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <div className="inline-flex items-center p-0.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-deck)] text-[11px] font-mono">
             <button
               type="button"
+              disabled={currentEpisode.hasCaptions === false}
               onClick={() => onToggleEngineMode("transcript")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                engineMode === "transcript"
-                  ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs"
-                  : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+                currentEpisode.hasCaptions === false
+                  ? "opacity-40 cursor-not-allowed text-[var(--color-ink-faint)]"
+                  : engineMode === "transcript"
+                  ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)] font-semibold shadow-xs cursor-pointer"
+                  : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] cursor-pointer"
               }`}
-              title="Fast instant search through transcripts and captions"
+              title={
+                currentEpisode.hasCaptions === false
+                  ? "Captions unavailable on server; watching directly with Gemini Vision"
+                  : "Fast instant search through transcripts and captions"
+              }
             >
               <Zap className="w-3 h-3" />
               <span>Fast (Transcript)</span>
