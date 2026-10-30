@@ -145,12 +145,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const summaryStatus = useEpisodeSummary(currentEpisode.id);
 
-  // Auto-switch to vision mode if the current episode has no server-side captions (e.g. Render fallback)
-  useEffect(() => {
-    if (currentEpisode.hasCaptions === false && engineMode !== "vision") {
-      setEngineMode("vision");
-    }
-  }, [currentEpisode, engineMode]);
+  // Derived: if the current episode has no captions, vision mode is required
+  const activeEngineMode = currentEpisode.hasCaptions === false ? "vision" : engineMode;
 
   const playerRef = useRef<PlayerDeckHandle>(null);
   const playerDeckRef = useRef<HTMLDivElement>(null);
@@ -245,7 +241,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     const trimmed = q.trim();
     if (!trimmed) return;
     setIsLoading(true);
-    const effectiveMode = engineMode === "vision" ? "vision" : knowledgeMode;
+    const effectiveMode = activeEngineMode === "vision" ? "vision" : knowledgeMode;
     void runSearch(trimmed, episodeId, chatHistory, effectiveMode);
   };
 
@@ -292,11 +288,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     const newQuery = defaultQueryFor(ep);
     setQuery(newQuery);
     setIsLoading(true);
-    const nextEngine = ep.hasCaptions === false ? "vision" : engineMode;
-    if (ep.hasCaptions === false && engineMode !== "vision") {
-      setEngineMode("vision");
-    }
-    const effectiveMode = nextEngine === "vision" ? "vision" : knowledgeMode;
+    const effectiveMode = ep.hasCaptions === false || engineMode === "vision" ? "vision" : knowledgeMode;
     void runSearch(newQuery, ep.id, [], effectiveMode);
   };
 
@@ -354,11 +346,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({
             elapsedSec={searchElapsedSec}
             knowledgeMode={knowledgeMode}
             onToggleKnowledgeMode={setKnowledgeMode}
-            engineMode={engineMode}
+            engineMode={activeEngineMode}
             onToggleEngineMode={(mode) => {
               setEngineMode(mode);
               if (query.trim() && !isLoading) {
-                const effectiveMode = mode === "vision" ? "vision" : knowledgeMode;
+                const effectiveMode = (currentEpisode.hasCaptions === false ? "vision" : mode) === "vision" ? "vision" : knowledgeMode;
                 setIsLoading(true);
                 void runSearch(query.trim(), currentEpisode.id, chatHistory, effectiveMode);
               }
